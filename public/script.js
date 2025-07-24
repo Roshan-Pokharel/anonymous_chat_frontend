@@ -172,6 +172,7 @@ showUsersBtn.onclick = () => {
     const publicBtn = document.createElement("div");
     publicBtn.className = "user";
     publicBtn.textContent = "🌐 Public Room";
+    publicBtn.style.textAlign = "center";
     publicBtn.onclick = () => {
       currentRoom = "public";
       roomTitle.textContent = "🌐 Public Chat";
@@ -210,6 +211,7 @@ showUsersBtn.onclick = () => {
       };
       allUsersList.appendChild(div);
     });
+
     allUsersModal.style.display = "flex";
   }
 };
