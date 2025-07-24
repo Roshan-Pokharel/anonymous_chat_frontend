@@ -7,11 +7,11 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Anonymous ChatBot</title>
-
-    <!-- ✅ FULL CSS STYLE (unchanged) -->
     <style>
+      /* Base & Light Mode Styles */
       :root {
         --vh: 1vh;
+        /* Light Theme Colors */
         --bg-color: #f3f4f6;
         --text-color: #222;
         --sidebar-bg: #fff;
@@ -28,6 +28,7 @@
         --shadow-color: rgba(0, 0, 0, 0.05);
       }
 
+      /* Dark Mode Styles */
       body.dark-mode {
         --bg-color: #111827;
         --text-color: #e5e7eb;
@@ -53,14 +54,12 @@
         height: 100vh;
         transition: background-color 0.3s, color 0.3s;
       }
-
       .container {
         flex: 1;
         display: flex;
         overflow: hidden;
         height: 100%;
       }
-
       #sidebar {
         width: 240px;
         background: var(--sidebar-bg);
@@ -68,8 +67,8 @@
         padding: 16px;
         overflow-y: auto;
         box-sizing: border-box;
+        transition: background-color 0.3s, border-color 0.3s;
       }
-
       #chat {
         flex: 1;
         display: flex;
@@ -77,12 +76,10 @@
         padding: 16px;
         box-sizing: border-box;
       }
-
       #roomTitle {
         font-size: 1.2rem;
         font-weight: 600;
       }
-
       #messages {
         flex: 1;
         overflow-y: auto;
@@ -92,21 +89,18 @@
         border-radius: 8px;
         box-shadow: 0 1px 3px var(--shadow-color);
         margin-bottom: 8px;
+        transition: background-color 0.3s, border-color 0.3s;
       }
-
       .msg {
         display: flex;
         margin-bottom: 10px;
       }
-
       .msg.me {
         justify-content: flex-end;
       }
-
       .msg.other {
         justify-content: flex-start;
       }
-
       .bubble {
         padding: 10px 16px;
         border-radius: 18px;
@@ -114,29 +108,25 @@
         word-break: break-word;
         box-shadow: 0 1px 4px rgba(79, 70, 229, 0.06);
       }
-
       .msg.me .bubble {
         background: var(--primary-accent);
         color: #fff;
         border-bottom-right-radius: 6px;
       }
-
       .msg.other .bubble {
         background: var(--other-bubble-bg);
         color: var(--text-color);
         border-bottom-left-radius: 6px;
+        transition: background-color 0.3s, color 0.3s;
       }
-
       .msg span {
         font-weight: 600;
       }
-
       #form {
         display: flex;
         margin-top: 12px;
         gap: 10px;
       }
-
       #input {
         flex: 1;
         padding: 12px;
@@ -145,8 +135,8 @@
         border-radius: 6px;
         background: var(--input-bg);
         color: var(--text-color);
+        transition: background-color 0.3s, border-color 0.3s, color 0.3s;
       }
-
       button {
         padding: 12px 16px;
         background: var(--primary-accent);
@@ -155,12 +145,11 @@
         border-radius: 6px;
         font-weight: 600;
         cursor: pointer;
+        transition: background-color 0.2s;
       }
-
       button:hover {
         background: var(--primary-accent-hover);
       }
-
       .user {
         background: var(--user-bg);
         padding: 10px;
@@ -170,11 +159,9 @@
         transition: background-color 0.2s;
         position: relative;
       }
-
       .user:hover {
         background: var(--user-hover-bg);
       }
-
       .red-dot {
         display: inline-block;
         width: 10px;
@@ -184,7 +171,6 @@
         margin-left: 6px;
         vertical-align: middle;
       }
-
       #topBar {
         background: var(--topbar-bg);
         padding: 12px 16px;
@@ -192,14 +178,16 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        position: relative;
+        z-index: 20;
+        box-sizing: border-box;
+        transition: background-color 0.3s, box-shadow 0.3s;
       }
-
       .top-bar-buttons {
         display: flex;
         align-items: center;
         gap: 10px;
       }
-
       #theme-toggle {
         background: none;
         border: 1px solid var(--border-color);
@@ -210,11 +198,9 @@
         font-size: 18px;
         line-height: 1;
       }
-
       #theme-toggle:hover {
         background: var(--user-hover-bg);
       }
-
       #showUsersBtn {
         display: none;
         background: var(--primary-accent);
@@ -227,6 +213,7 @@
         font-size: 16px;
       }
 
+      /* Modal Styles */
       .modal {
         position: fixed;
         z-index: 1000;
@@ -239,7 +226,6 @@
         align-items: center;
         justify-content: center;
       }
-
       .modal-content {
         background: var(--modal-content-bg);
         padding: 32px 24px;
@@ -250,10 +236,13 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
+        box-sizing: border-box;
+        transition: background-color 0.3s;
       }
-
       .modal-content input[type="text"],
       .modal-content input[type="number"] {
+        outline: none;
+        transition: border-color 0.2s;
         border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 10px;
@@ -262,18 +251,15 @@
         background-color: var(--input-bg);
         color: var(--text-color);
       }
-
       .modal-content input:focus {
         border-color: var(--primary-accent);
       }
-
       .gender-group {
         display: flex;
         justify-content: center;
         gap: 24px;
         margin-bottom: 10px;
       }
-
       .gender-group label {
         display: flex;
         align-items: center;
@@ -281,65 +267,80 @@
         cursor: pointer;
         font-size: 16px;
       }
+      input[type="text"],
+      input[type="search"],
+      input[type="email"],
+      input[type="password"],
+      input[type="number"] {
+        font-size: 16px;
+      }
 
+      /* Mobile Responsive Styles with KEYBOARD FIX */
       @media (max-width: 768px) {
         body {
           height: calc(var(--vh, 1vh) * 100);
           overflow: hidden;
         }
-
         #showUsersBtn {
           display: inline-block;
         }
-
         .container {
           flex-direction: column;
+          height: 100%;
         }
-
         #sidebar {
           display: none;
         }
-
         #topBar {
           position: fixed;
           top: 0;
           left: 0;
           right: 0;
+          width: 100%;
           z-index: 20;
         }
-
         #chat {
           padding-top: 68px;
+          height: 100%;
+          overflow: hidden;
         }
-
         #messages {
+          flex: 1;
           margin-bottom: 0;
           padding-bottom: 70px;
         }
-
         #form {
           flex-direction: row;
+          gap: 8px;
           position: fixed;
           bottom: 0;
           left: 0;
           width: 100%;
           background: var(--topbar-bg);
-          padding: 8px;
+          padding: 8px 8px env(safe-area-inset-bottom, 12px) 8px;
           box-shadow: 0 -2px 8px var(--shadow-color);
           z-index: 10;
+          box-sizing: border-box;
         }
-
         button {
+          width: auto;
           min-width: 60px;
         }
       }
+      @media (max-width: 480px) {
+        .user {
+          flex: 1 1 100%;
+          min-width: 0;
+        }
+        #roomTitle {
+          font-size: 1rem;
+        }
+        #form {
+          padding: 6px 4px env(safe-area-inset-bottom, 10px) 4px;
+        }
+      }
     </style>
-
-    <!-- ✅ Load Socket.IO and JS script -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script defer src="script.js"></script>
   </head>
-
   <body>
     <!-- Modals -->
     <div id="userModal" class="modal">
@@ -358,14 +359,12 @@
         />
         <div class="gender-group">
           <label
-            ><input type="radio" name="gender" value="male" checked /><span
-              style="color: #3b82f6; font-weight: 600"
-              >♂ Male</span
-            ></label
+            ><input type="radio" name="gender" value="male" checked />
+            <span style="color: #3b82f6; font-weight: 600">♂ Male</span></label
           >
           <label
-            ><input type="radio" name="gender" value="female" /><span
-              style="color: #e75480; font-weight: 600"
+            ><input type="radio" name="gender" value="female" />
+            <span style="color: #e75480; font-weight: 600"
               >♀ Female</span
             ></label
           >
@@ -373,7 +372,6 @@
         <button type="submit">Start Chatting 🚀</button>
       </form>
     </div>
-
     <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content" style="max-height: 70vh; overflow-y: auto">
         <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
@@ -397,7 +395,6 @@
         <button id="showUsersBtn">👥 Users</button>
       </div>
     </div>
-
     <div class="container">
       <div id="sidebar">
         <h3 style="margin-bottom: 12px">👥 Users</h3>
@@ -416,5 +413,7 @@
         </form>
       </div>
     </div>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="script.js"></script>
   </body>
 </html>

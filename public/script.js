@@ -1,5 +1,5 @@
 const socket = io("https://anonymous-chat-backend-1.onrender.com");
-
+// DOM Elements
 const form = document.getElementById("form");
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
@@ -8,19 +8,23 @@ const roomTitle = document.getElementById("roomTitle");
 const showUsersBtn = document.getElementById("showUsersBtn");
 const themeToggleBtn = document.getElementById("theme-toggle");
 
+// Modal elements
 const userModal = document.getElementById("userModal");
 const userForm = document.getElementById("userForm");
 const nicknameInput = document.getElementById("nicknameInput");
 const ageInput = document.getElementById("ageInput");
 
+// All users modal (for mobile)
 const allUsersModal = document.getElementById("allUsersModal");
 const allUsersList = document.getElementById("allUsersList");
 
+// State
 let latestUsers = [];
 let unreadPrivate = {};
 let currentRoom = "public";
 let myId = null;
 
+// --- THEME/DARK MODE LOGIC ---
 function applyTheme(theme) {
   if (theme === "dark") {
     document.body.classList.add("dark-mode");
@@ -38,6 +42,8 @@ themeToggleBtn.addEventListener("click", () => {
   localStorage.setItem("chatTheme", newTheme);
 });
 
+// --- MAIN CHAT LOGIC ---
+
 function showUserModal() {
   userModal.style.display = "flex";
   nicknameInput.focus();
@@ -47,23 +53,31 @@ function showUserModal() {
     const nickname = nicknameInput.value.trim();
     const gender = userForm.gender.value;
     const age = ageInput.value.trim();
-    if (!nickname || !age || isNaN(age) || age < 18 || age > 99) return;
+    if (!nickname) {
+      nicknameInput.focus();
+      return;
+    }
+    if (!age || isNaN(age) || age < 18 || age > 99) {
+      ageInput.focus();
+      ageInput.style.borderColor = "#e75480";
+      return;
+    }
     socket.emit("user info", { nickname, gender, age });
     userModal.style.display = "none";
     socket.emit("join room", "public");
   };
 }
 
-socket.on("connect", () => {
-  myId = socket.id;
-  showUserModal();
-});
-
 socket.on("nickname taken", () => {
   nicknameInput.style.borderColor = "#e11d48";
   nicknameInput.value = "";
   nicknameInput.placeholder = "Nickname already taken!";
   nicknameInput.focus();
+});
+
+socket.on("connect", () => {
+  myId = socket.id;
+  showUserModal();
 });
 
 form.addEventListener("submit", (e) => {
@@ -84,22 +98,26 @@ input.addEventListener("focus", () => {
 function getGenderSymbol(gender) {
   return gender === "female" ? "♀" : "♂";
 }
-
 function getNameColor(gender) {
   return gender === "female" ? "#e75480" : "#3b82f6";
 }
 
 function addMessage(msg) {
   const item = document.createElement("div");
-  item.classList.add("msg", msg.id === myId ? "me" : "other");
+  item.classList.add("msg");
+  if (msg.id && msg.id === myId) {
+    item.classList.add("me");
+  } else {
+    item.classList.add("other");
+  }
   item.innerHTML = `
     <div class="bubble">
       <span style="color:${getNameColor(msg.gender)};font-weight:600;">
         ${msg.name} ${getGenderSymbol(msg.gender)}${
     msg.age ? " · " + msg.age : ""
-  }:
-      </span> ${msg.text}
-    </div>`;
+  }:</span> ${msg.text}
+    </div>
+  `;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
 }
@@ -126,7 +144,6 @@ socket.on("room history", (msgs) => {
 
 function updateUserList() {
   userList.innerHTML = "";
-
   const publicBtn = document.createElement("div");
   publicBtn.className = "user";
   publicBtn.textContent = "🌐 Public Room";
@@ -142,12 +159,12 @@ function updateUserList() {
     if (user.id === myId) return;
     const div = document.createElement("div");
     div.className = "user";
-    div.innerHTML = `
-      <span style="color:${getNameColor(user.gender)};font-weight:600;">
-        ${user.name} ${getGenderSymbol(user.gender)}${
-      user.age ? " · " + user.age : ""
-    }
-      </span>${unreadPrivate[user.id] ? '<span class="red-dot"></span>' : ""}`;
+    div.innerHTML =
+      `<span style="color:${getNameColor(user.gender)};font-weight:600;">
+      ${user.name} ${getGenderSymbol(user.gender)}${
+        user.age ? " · " + user.age : ""
+      }</span>` +
+      (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
     div.onclick = () => {
       currentRoom = [myId, user.id].sort().join("-");
       roomTitle.textContent = `🔒 Chat with ${user.name}`;
@@ -168,11 +185,11 @@ socket.on("user list", (users) => {
 showUsersBtn.onclick = () => {
   if (window.innerWidth <= 768) {
     allUsersList.innerHTML = "";
-
     const publicBtn = document.createElement("div");
     publicBtn.className = "user";
+    publicBtn.style =
+      "background:#eef;padding:10px;border-radius:6px;margin-bottom:8px;cursor:pointer;text-align:center;";
     publicBtn.textContent = "🌐 Public Room";
-    publicBtn.style.textAlign = "center";
     publicBtn.onclick = () => {
       currentRoom = "public";
       roomTitle.textContent = "🌐 Public Chat";
@@ -192,14 +209,12 @@ showUsersBtn.onclick = () => {
       if (user.id === myId) return;
       const div = document.createElement("div");
       div.className = "user";
-      div.innerHTML = `
-        <span style="color:${getNameColor(user.gender)};font-weight:600;">
-          ${user.name} ${getGenderSymbol(user.gender)}${
-        user.age ? " · " + user.age : ""
-      }
-        </span>${
-          unreadPrivate[user.id] ? '<span class="red-dot"></span>' : ""
-        }`;
+      div.innerHTML =
+        `<span style="color:${getNameColor(user.gender)};font-weight:600;">
+        ${user.name} ${getGenderSymbol(user.gender)}${
+          user.age ? " · " + user.age : ""
+        }</span>` +
+        (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
       div.onclick = () => {
         currentRoom = [myId, user.id].sort().join("-");
         roomTitle.textContent = `🔒 Chat with ${user.name}`;
@@ -211,7 +226,6 @@ showUsersBtn.onclick = () => {
       };
       allUsersList.appendChild(div);
     });
-
     allUsersModal.style.display = "flex";
   }
 };
@@ -222,6 +236,7 @@ allUsersModal.addEventListener("click", (e) => {
   }
 });
 
+// --- MOBILE KEYBOARD & INITIALIZATION ---
 function adjustHeightForKeyboard() {
   if (window.innerWidth <= 768) {
     let vh = window.innerHeight * 0.01;
@@ -235,8 +250,11 @@ function adjustHeightForKeyboard() {
 window.addEventListener("resize", adjustHeightForKeyboard);
 
 window.addEventListener("load", () => {
+  // Apply saved theme from localStorage
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
+
+  // Adjust for mobile keyboard
   adjustHeightForKeyboard();
   input.focus();
 });
