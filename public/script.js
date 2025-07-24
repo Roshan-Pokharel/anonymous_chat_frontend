@@ -188,7 +188,7 @@ showUsersBtn.onclick = () => {
     const publicBtn = document.createElement("div");
     publicBtn.className = "user";
     publicBtn.style =
-      "background:#eef;padding:10px;border-radius:6px;margin-bottom:8px;cursor:pointer;text-align:center;";
+      "padding:10px;border-radius:6px;margin-bottom:8px;cursor:pointer;text-align:center;";
     publicBtn.textContent = "🌐 Public Room";
     publicBtn.onclick = () => {
       currentRoom = "public";
