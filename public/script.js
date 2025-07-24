@@ -1,4 +1,4 @@
-const socket = io("https://anonymous-chatbot-ifps.onrender.com");
+const socket = io("https://anonymous-chat-backend-1.onrender.com");
 // DOM Elements
 const form = document.getElementById("form");
 const input = document.getElementById("input");
