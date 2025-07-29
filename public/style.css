@@ -455,7 +455,7 @@ input[type="number"] {
   }
 
   #theme-toggle {
-    border-radius: 50%; /* Make button round on mobile */
+    /* border-radius: 50%; Make button round on mobile */
     width: 40px;
     height: 40px;
   }
