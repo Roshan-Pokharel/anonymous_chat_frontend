@@ -175,17 +175,14 @@ function addMessage(msg) {
 
 // Listener for incoming chat messages
 socket.on("chat message", (msg) => {
-  // Hide typing indicator when a message arrives
   if (msg.room === currentRoom) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
   }
-  // Handle unread notifications for private messages in other rooms
   if (msg.room !== "public" && currentRoom !== msg.room && msg.to === myId) {
     unreadPrivate[msg.id] = true;
     updateUserList();
   }
-  // Add message to the UI if it's for the current room
   if (msg.room === currentRoom) {
     addMessage(msg);
     if (msg.room !== "public") {
@@ -239,8 +236,13 @@ function switchRoom(roomName, title) {
   messages.innerHTML = "";
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
-  // Reset background; a new one will be loaded if it exists for the room
+
+  // --- FIX FOR BACKGROUND IMAGE ---
+  // Reset background and remove the helper class when switching rooms
   messages.style.backgroundImage = "none";
+  messages.classList.remove("has-background");
+  // --- END FIX ---
+
   socket.emit("join room", currentRoom);
 }
 
@@ -253,7 +255,6 @@ socket.on("user list", (users) => {
 // --- Mobile-specific Logic ---
 showUsersBtn.onclick = () => {
   allUsersList.innerHTML = "";
-  // Add Public Room button to modal
   const publicBtn = document.createElement("div");
   publicBtn.className = "user";
   publicBtn.textContent = "🌐 Public Room";
@@ -263,7 +264,6 @@ showUsersBtn.onclick = () => {
   };
   allUsersList.appendChild(publicBtn);
 
-  // Add all other users
   latestUsers.forEach((user) => {
     if (user.id === myId) return;
     const div = document.createElement("div");
@@ -286,7 +286,6 @@ showUsersBtn.onclick = () => {
   allUsersModal.style.display = "flex";
 };
 
-// Close modal if clicking outside the content area
 allUsersModal.addEventListener("click", (e) => {
   if (e.target === allUsersModal) {
     allUsersModal.style.display = "none";
@@ -295,7 +294,6 @@ allUsersModal.addEventListener("click", (e) => {
 
 // --- Event Listeners for New Features ---
 
-// Listen for rate limit warnings from server
 socket.on("rate limit", (msg) => {
   errorMessage.textContent = msg;
   errorMessage.style.opacity = "1";
@@ -305,7 +303,6 @@ socket.on("rate limit", (msg) => {
   }, 3000);
 });
 
-// Listen for read receipt updates from server
 socket.on("message was read", ({ room, messageId }) => {
   if (room === currentRoom) {
     const messageEl = document.querySelector(
@@ -314,14 +311,13 @@ socket.on("message was read", ({ room, messageId }) => {
     if (messageEl) {
       const receiptEl = messageEl.querySelector(".read-receipt");
       if (receiptEl) {
-        receiptEl.textContent = "✓✓"; // Update to double check
-        receiptEl.classList.add("read"); // Add class for styling
+        receiptEl.textContent = "✓✓";
+        receiptEl.classList.add("read");
       }
     }
   }
 });
 
-// Handle setting the background image
 setBackgroundBtn.addEventListener("click", () => {
   const url = backgroundInput.value.trim();
   if (url) {
@@ -329,7 +325,6 @@ setBackgroundBtn.addEventListener("click", () => {
       socket.emit("set background", { room: currentRoom, backgroundUrl: url });
       backgroundInput.value = "";
     } else {
-      // Use a more user-friendly way to show error instead of alert
       errorMessage.textContent = "Please enter a valid URL.";
       errorMessage.style.opacity = "1";
       setTimeout(() => {
@@ -339,12 +334,16 @@ setBackgroundBtn.addEventListener("click", () => {
   }
 });
 
+// --- FIX FOR BACKGROUND IMAGE ---
 // Listen for background updates from the server
 socket.on("background updated", ({ room, backgroundUrl }) => {
   if (room === currentRoom) {
     messages.style.backgroundImage = `url(${backgroundUrl})`;
+    // Add a class to enable semi-transparent bubble styles
+    messages.classList.add("has-background");
   }
 });
+// --- END FIX ---
 
 // --- Mobile Keyboard & Initialization ---
 function adjustHeightForKeyboard() {
@@ -356,10 +355,8 @@ function adjustHeightForKeyboard() {
 
 window.addEventListener("resize", adjustHeightForKeyboard);
 
-// On initial load
 window.addEventListener("load", () => {
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
   adjustHeightForKeyboard();
-  // Don't focus input on load, wait for user modal to close.
 });

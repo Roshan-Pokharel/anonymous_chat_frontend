@@ -116,6 +116,7 @@
         word-break: break-word;
         box-shadow: 0 1px 4px rgba(79, 70, 229, 0.06);
         position: relative;
+        transition: background-color 0.3s;
       }
       .msg.me .bubble {
         background: var(--primary-accent);
@@ -128,7 +129,6 @@
         background: var(--other-bubble-bg);
         color: var(--text-color);
         border-bottom-left-radius: 6px;
-        transition: background-color 0.3s, color 0.3s;
       }
       /* Read receipt styles */
       .read-receipt {
@@ -144,6 +144,37 @@
       }
       .msg span {
         font-weight: 600;
+      }
+
+      /* --- FIX FOR BACKGROUND IMAGE --- */
+      #messages.has-background {
+        background-color: transparent;
+      }
+      #messages.has-background .msg.me .bubble {
+        background-color: rgba(
+          79,
+          70,
+          229,
+          0.85
+        ); /* Semi-transparent primary accent */
+      }
+      #messages.has-background .msg.other .bubble {
+        background-color: rgba(
+          255,
+          255,
+          255,
+          0.75
+        ); /* Semi-transparent light */
+        backdrop-filter: blur(2px);
+      }
+      body.dark-mode #messages.has-background .msg.other .bubble {
+        background-color: rgba(55, 65, 81, 0.75); /* Semi-transparent dark */
+      }
+      /* --- END FIX --- */
+
+      #input-area {
+        display: flex;
+        flex-direction: column;
       }
       #form {
         display: flex;
@@ -245,7 +276,6 @@
         transition: all 0.3s ease;
         opacity: 0;
       }
-      /* Error message style */
       #error-message {
         color: var(--error-color);
         font-weight: 600;
@@ -254,7 +284,6 @@
         color: #9ca3af;
       }
 
-      /* Background settings styles */
       .background-settings {
         margin-top: auto;
         padding-top: 16px;
@@ -279,7 +308,6 @@
         font-size: 14px;
       }
 
-      /* Modal Styles */
       .modal {
         position: fixed;
         z-index: 1000;
@@ -341,7 +369,7 @@
         font-size: 16px;
       }
 
-      /* Mobile Responsive Styles with KEYBOARD FIX */
+      /* --- FIX FOR MOBILE TYPING INDICATOR --- */
       @media (max-width: 768px) {
         body {
           height: calc(var(--vh, 1vh) * 100);
@@ -366,18 +394,17 @@
           z-index: 20;
         }
         #chat {
-          padding-top: 68px;
+          padding-top: 68px; /* Space for top bar */
           height: 100%;
           overflow: hidden;
         }
         #messages {
           flex: 1;
           margin-bottom: 0;
-          padding-bottom: 70px;
+          /* Increased padding to make space for form AND typing indicator */
+          padding-bottom: 100px;
         }
-        #form {
-          flex-direction: row;
-          gap: 8px;
+        #input-area {
           position: fixed;
           bottom: 0;
           left: 0;
@@ -388,11 +415,16 @@
           z-index: 10;
           box-sizing: border-box;
         }
+        #form {
+          margin-top: 0; /* Reset margin */
+        }
         button {
           width: auto;
           min-width: 60px;
         }
       }
+      /* --- END FIX --- */
+
       @media (max-width: 480px) {
         .user {
           flex: 1 1 100%;
@@ -401,7 +433,7 @@
         #roomTitle {
           font-size: 1rem;
         }
-        #form {
+        #input-area {
           padding: 6px 4px env(safe-area-inset-bottom, 10px) 4px;
         }
       }
@@ -482,19 +514,21 @@
       </div>
       <div id="chat">
         <div id="messages"></div>
-        <div id="typing-indicator"></div>
-        <!-- Error Message Display -->
-        <div id="error-message"></div>
-        <form id="form" autocomplete="off">
-          <input
-            id="input"
-            type="text"
-            placeholder="Type your message..."
-            autocomplete="off"
-            maxlength="500"
-          />
-          <button type="submit">Send</button>
-        </form>
+        <!-- NEW HTML STRUCTURE FOR INPUT AREA -->
+        <div id="input-area">
+          <div id="typing-indicator"></div>
+          <div id="error-message"></div>
+          <form id="form" autocomplete="off">
+            <input
+              id="input"
+              type="text"
+              placeholder="Type your message..."
+              autocomplete="off"
+              maxlength="500"
+            />
+            <button type="submit">Send</button>
+          </form>
+        </div>
       </div>
     </div>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
