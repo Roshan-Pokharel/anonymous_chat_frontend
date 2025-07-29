@@ -365,10 +365,6 @@ body.dark-mode #typing-indicator {
   padding: 8px;
 }
 
-.background-option-default:hover {
-  background: var(--user-hover-bg);
-}
-
 /* Modal styles */
 .modal {
   position: fixed;
@@ -496,6 +492,9 @@ input[type="number"] {
     width: auto;
     min-width: 60px;
   }
+  .background-option-default:hover {
+    background: var(--user-hover-bg);
+  }
 }
 
 @media (max-width: 480px) {
@@ -504,8 +503,5 @@ input[type="number"] {
   }
   #input-area {
     padding: 6px 4px env(safe-area-inset-bottom, 10px) 4px;
-  }
-  .background-option-default:hover {
-    background: none;
   }
 }
