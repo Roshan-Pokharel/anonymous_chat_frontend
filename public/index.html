@@ -94,7 +94,7 @@
         margin-bottom: 8px;
         transition: background-color 0.3s, border-color 0.3s,
           background-image 0.5s;
-        /* ✨ NEW: Styles for background image */
+        /* Styles for background image */
         background-size: cover;
         background-position: center;
       }
@@ -121,7 +121,7 @@
         background: var(--primary-accent);
         color: #fff;
         border-bottom-right-radius: 6px;
-        /* ✨ NEW: Space for read receipt */
+        /* Space for read receipt */
         padding-right: 30px;
       }
       .msg.other .bubble {
@@ -130,7 +130,7 @@
         border-bottom-left-radius: 6px;
         transition: background-color 0.3s, color 0.3s;
       }
-      /* ✨ NEW: Read receipt styles */
+      /* Read receipt styles */
       .read-receipt {
         position: absolute;
         bottom: 5px;
@@ -142,7 +142,6 @@
       .read-receipt.read {
         color: #86efac; /* A light green for 'read' */
       }
-      /* --- */
       .msg span {
         font-weight: 600;
       }
@@ -246,7 +245,7 @@
         transition: all 0.3s ease;
         opacity: 0;
       }
-      /* ✨ NEW: Error message style */
+      /* Error message style */
       #error-message {
         color: var(--error-color);
         font-weight: 600;
@@ -255,7 +254,7 @@
         color: #9ca3af;
       }
 
-      /* ✨ NEW: Background settings styles */
+      /* Background settings styles */
       .background-settings {
         margin-top: auto;
         padding-top: 16px;
@@ -279,7 +278,6 @@
         padding: 8px;
         font-size: 14px;
       }
-      /* --- */
 
       /* Modal Styles */
       .modal {
@@ -416,7 +414,13 @@
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
           👤 Welcome! Set your profile
         </h2>
-        <input type="text" id="nicknameInput" placeholder="Nickname" required />
+        <input
+          type="text"
+          id="nicknameInput"
+          placeholder="Nickname"
+          required
+          maxlength="20"
+        />
         <input
           type="number"
           id="ageInput"
@@ -469,26 +473,25 @@
           <h3 style="margin-bottom: 12px">👥 Users</h3>
           <div id="userList"></div>
         </div>
-        <!-- ✨ NEW: Background Settings -->
+        <!-- Background Settings -->
         <div class="background-settings">
           <h4>🎨 Room Background</h4>
           <input type="text" id="backgroundInput" placeholder="Image URL..." />
           <button id="setBackgroundBtn">Set Background</button>
         </div>
-        <!-- --- -->
       </div>
       <div id="chat">
         <div id="messages"></div>
         <div id="typing-indicator"></div>
-        <!-- ✨ NEW: Error Message Display -->
+        <!-- Error Message Display -->
         <div id="error-message"></div>
-        <!-- --- -->
         <form id="form" autocomplete="off">
           <input
             id="input"
             type="text"
             placeholder="Type your message..."
             autocomplete="off"
+            maxlength="500"
           />
           <button type="submit">Send</button>
         </form>

@@ -1,5 +1,7 @@
+// Establish connection to the Socket.IO server
 const socket = io("https://anonymous-chat-backend-1.onrender.com");
-// DOM Elements
+
+// --- DOM Element Selectors ---
 const form = document.getElementById("form");
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
@@ -8,11 +10,9 @@ const roomTitle = document.getElementById("roomTitle");
 const showUsersBtn = document.getElementById("showUsersBtn");
 const themeToggleBtn = document.getElementById("theme-toggle");
 const typingIndicator = document.getElementById("typing-indicator");
-// --- ✨ NEW: Element selectors for new features ---
 const errorMessage = document.getElementById("error-message");
 const backgroundInput = document.getElementById("backgroundInput");
 const setBackgroundBtn = document.getElementById("setBackgroundBtn");
-// ---
 
 // Modal elements
 const userModal = document.getElementById("userModal");
@@ -20,17 +20,17 @@ const userForm = document.getElementById("userForm");
 const nicknameInput = document.getElementById("nicknameInput");
 const ageInput = document.getElementById("ageInput");
 
-// All users modal (for mobile)
+// All users modal (for mobile view)
 const allUsersModal = document.getElementById("allUsersModal");
 const allUsersList = document.getElementById("allUsersList");
 
-// State
-let latestUsers = [];
-let unreadPrivate = {};
-let currentRoom = "public";
-let myId = null;
+// --- Application State ---
+let latestUsers = []; // Cache of the current user list
+let unreadPrivate = {}; // Tracks unread messages from users { userId: true }
+let currentRoom = "public"; // The room the user is currently in
+let myId = null; // The user's own socket ID
 
-// --- TYPING INDICATOR LOGIC ---
+// --- Typing Indicator Logic ---
 let typingTimer;
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 1500; // 1.5 seconds
@@ -42,6 +42,7 @@ input.addEventListener("input", () => {
   }
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => {
+    // If input is cleared, immediately stop typing
     if (input.value.length === 0) {
       isTyping = false;
       socket.emit("stop typing", { room: currentRoom });
@@ -63,7 +64,7 @@ socket.on("stop typing", ({ room }) => {
   }
 });
 
-// --- THEME/DARK MODE LOGIC ---
+// --- Theme/Dark Mode Logic ---
 function applyTheme(theme) {
   if (theme === "dark") {
     document.body.classList.add("dark-mode");
@@ -81,8 +82,9 @@ themeToggleBtn.addEventListener("click", () => {
   localStorage.setItem("chatTheme", newTheme);
 });
 
-// --- MAIN CHAT LOGIC ---
+// --- Main Chat Logic ---
 
+// Shows the initial modal to get user information
 function showUserModal() {
   userModal.style.display = "flex";
   nicknameInput.focus();
@@ -107,18 +109,12 @@ function showUserModal() {
   };
 }
 
-socket.on("nickname taken", () => {
-  nicknameInput.style.borderColor = "#e11d48";
-  nicknameInput.value = "";
-  nicknameInput.placeholder = "Nickname already taken!";
-  nicknameInput.focus();
-});
-
 socket.on("connect", () => {
   myId = socket.id;
   showUserModal();
 });
 
+// Handle form submission to send a message
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   if (input.value) {
@@ -127,16 +123,11 @@ form.addEventListener("submit", (e) => {
     isTyping = false;
     socket.emit("stop typing", { room: currentRoom });
     input.value = "";
-    setTimeout(() => input.focus(), 10);
+    setTimeout(() => input.focus(), 10); // Refocus input after sending
   }
 });
 
-input.addEventListener("focus", () => {
-  setTimeout(() => {
-    messages.scrollTop = messages.scrollHeight;
-  }, 100);
-});
-
+// Helper functions for styling
 function getGenderSymbol(gender) {
   return gender === "female" ? "♀" : "♂";
 }
@@ -144,16 +135,15 @@ function getNameColor(gender) {
   return gender === "female" ? "#e75480" : "#3b82f6";
 }
 
+// Adds a message bubble to the chat window
 function addMessage(msg) {
   const item = document.createElement("div");
   item.classList.add("msg");
-  // ✨ NEW: Set message ID attribute for read receipt tracking
   item.setAttribute("data-message-id", msg.messageId);
 
   const isMe = msg.id && msg.id === myId;
   item.classList.add(isMe ? "me" : "other");
 
-  // ✨ NEW: Read receipt logic for private chats
   const isPrivate = currentRoom !== "public";
   const readReceiptHTML =
     isMe && isPrivate
@@ -174,7 +164,7 @@ function addMessage(msg) {
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
 
-  // ✨ NEW: If this is an incoming message in an active private chat, notify server it has been read
+  // If this is an incoming message in an active private chat, notify server it has been read
   if (!isMe && isPrivate) {
     socket.emit("message read", {
       room: currentRoom,
@@ -183,13 +173,14 @@ function addMessage(msg) {
   }
 }
 
+// Listener for incoming chat messages
 socket.on("chat message", (msg) => {
-  // When a new message arrives, hide the typing indicator
+  // Hide typing indicator when a message arrives
   if (msg.room === currentRoom) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
   }
-  // Handle unread notifications for private messages
+  // Handle unread notifications for private messages in other rooms
   if (msg.room !== "public" && currentRoom !== msg.room && msg.to === myId) {
     unreadPrivate[msg.id] = true;
     updateUserList();
@@ -199,17 +190,19 @@ socket.on("chat message", (msg) => {
     addMessage(msg);
     if (msg.room !== "public") {
       const otherId = msg.id === myId ? msg.to : msg.id;
-      unreadPrivate[otherId] = false;
+      delete unreadPrivate[otherId];
       updateUserList();
     }
   }
 });
 
+// Listener for receiving room history
 socket.on("room history", (msgs) => {
   messages.innerHTML = "";
   msgs.forEach(addMessage);
 });
 
+// Updates the user list in the sidebar
 function updateUserList() {
   userList.innerHTML = "";
   const publicBtn = document.createElement("div");
@@ -231,14 +224,14 @@ function updateUserList() {
     div.onclick = () => {
       const privateRoomName = [myId, user.id].sort().join("-");
       switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
-      unreadPrivate[user.id] = false; // Mark as read on click
+      delete unreadPrivate[user.id]; // Mark as read on click
       updateUserList();
     };
     userList.appendChild(div);
   });
 }
 
-// ✨ NEW: Central function to handle room switching
+// Central function to handle switching rooms
 function switchRoom(roomName, title) {
   if (currentRoom === roomName) return;
   currentRoom = roomName;
@@ -246,66 +239,61 @@ function switchRoom(roomName, title) {
   messages.innerHTML = "";
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
-  // Reset background, a new one will be loaded if it exists for the room
+  // Reset background; a new one will be loaded if it exists for the room
   messages.style.backgroundImage = "none";
   socket.emit("join room", currentRoom);
 }
 
+// Listener for user list updates
 socket.on("user list", (users) => {
   latestUsers = users;
   updateUserList();
 });
 
+// --- Mobile-specific Logic ---
 showUsersBtn.onclick = () => {
-  if (window.innerWidth <= 768) {
-    allUsersList.innerHTML = "";
-    const publicBtn = document.createElement("div");
-    publicBtn.className = "user";
-    publicBtn.style =
-      "padding:10px;border-radius:6px;margin-bottom:8px;cursor:pointer;text-align:center;";
-    publicBtn.textContent = "🌐 Public Room";
-    publicBtn.onclick = () => {
-      switchRoom("public", "🌐 Public Chat");
+  allUsersList.innerHTML = "";
+  // Add Public Room button to modal
+  const publicBtn = document.createElement("div");
+  publicBtn.className = "user";
+  publicBtn.textContent = "🌐 Public Room";
+  publicBtn.onclick = () => {
+    switchRoom("public", "🌐 Public Chat");
+    allUsersModal.style.display = "none";
+  };
+  allUsersList.appendChild(publicBtn);
+
+  // Add all other users
+  latestUsers.forEach((user) => {
+    if (user.id === myId) return;
+    const div = document.createElement("div");
+    div.className = "user";
+    div.innerHTML =
+      `<span style="color:${getNameColor(user.gender)};font-weight:600;">
+        ${user.name} ${getGenderSymbol(user.gender)}${
+        user.age ? " · " + user.age : ""
+      }</span>` +
+      (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
+    div.onclick = () => {
+      const privateRoomName = [myId, user.id].sort().join("-");
+      switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
+      delete unreadPrivate[user.id];
+      updateUserList();
       allUsersModal.style.display = "none";
     };
-    allUsersList.appendChild(publicBtn);
-
-    const countDiv = document.createElement("div");
-    countDiv.style =
-      "text-align:center;margin-bottom:8px;color:#4f46e5;font-weight:600;";
-    countDiv.textContent = `Online Users: ${latestUsers.length}`;
-    allUsersList.appendChild(countDiv);
-
-    latestUsers.forEach((user) => {
-      if (user.id === myId) return;
-      const div = document.createElement("div");
-      div.className = "user";
-      div.innerHTML =
-        `<span style="color:${getNameColor(user.gender)};font-weight:600;">
-        ${user.name} ${getGenderSymbol(user.gender)}${
-          user.age ? " · " + user.age : ""
-        }</span>` +
-        (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
-      div.onclick = () => {
-        const privateRoomName = [myId, user.id].sort().join("-");
-        switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
-        unreadPrivate[user.id] = false;
-        updateUserList();
-        allUsersModal.style.display = "none";
-      };
-      allUsersList.appendChild(div);
-    });
-    allUsersModal.style.display = "flex";
-  }
+    allUsersList.appendChild(div);
+  });
+  allUsersModal.style.display = "flex";
 };
 
+// Close modal if clicking outside the content area
 allUsersModal.addEventListener("click", (e) => {
   if (e.target === allUsersModal) {
     allUsersModal.style.display = "none";
   }
 });
 
-// --- ✨ NEW: Event Listeners for new features ---
+// --- Event Listeners for New Features ---
 
 // Listen for rate limit warnings from server
 socket.on("rate limit", (msg) => {
@@ -337,12 +325,16 @@ socket.on("message was read", ({ room, messageId }) => {
 setBackgroundBtn.addEventListener("click", () => {
   const url = backgroundInput.value.trim();
   if (url) {
-    // Basic URL validation
     if (url.startsWith("http://") || url.startsWith("https://")) {
       socket.emit("set background", { room: currentRoom, backgroundUrl: url });
       backgroundInput.value = "";
     } else {
-      alert("Please enter a valid URL (starting with http:// or https://)");
+      // Use a more user-friendly way to show error instead of alert
+      errorMessage.textContent = "Please enter a valid URL.";
+      errorMessage.style.opacity = "1";
+      setTimeout(() => {
+        errorMessage.style.opacity = "0";
+      }, 3000);
     }
   }
 });
@@ -353,24 +345,21 @@ socket.on("background updated", ({ room, backgroundUrl }) => {
     messages.style.backgroundImage = `url(${backgroundUrl})`;
   }
 });
-// ---
 
-// --- MOBILE KEYBOARD & INITIALIZATION ---
+// --- Mobile Keyboard & Initialization ---
 function adjustHeightForKeyboard() {
   if (window.innerWidth <= 768) {
     let vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty("--vh", `${vh}px`);
-    setTimeout(() => {
-      messages.scrollTop = messages.scrollHeight;
-    }, 150);
   }
 }
 
 window.addEventListener("resize", adjustHeightForKeyboard);
 
+// On initial load
 window.addEventListener("load", () => {
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
   adjustHeightForKeyboard();
-  input.focus();
+  // Don't focus input on load, wait for user modal to close.
 });
