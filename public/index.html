@@ -8,9 +8,15 @@
     />
     <title>Anonymous Chat</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <!-- Modals -->
+    <!-- Modal for initial user profile setup -->
     <div id="userModal" class="modal">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -19,33 +25,33 @@
         <input
           type="text"
           id="nicknameInput"
-          placeholder="Nickname"
+          placeholder="Enter your Nickname"
           required
           maxlength="20"
         />
         <input
           type="number"
           id="ageInput"
-          placeholder="Age"
+          placeholder="Enter your Age"
           min="18"
           max="99"
           required
         />
         <div class="gender-group">
-          <label
-            ><input type="radio" name="gender" value="male" checked />
-            <span style="color: #3b82f6; font-weight: 600">♂ Male</span></label
-          >
-          <label
-            ><input type="radio" name="gender" value="female" />
-            <span style="color: #e75480; font-weight: 600"
-              >♀ Female</span
-            ></label
-          >
+          <label>
+            <input type="radio" name="gender" value="male" checked />
+            <span style="color: #3b82f6; font-weight: 600">♂ Male</span>
+          </label>
+          <label>
+            <input type="radio" name="gender" value="female" />
+            <span style="color: #e75480; font-weight: 600">♀ Female</span>
+          </label>
         </div>
         <button type="submit">Start Chatting 🚀</button>
       </form>
     </div>
+
+    <!-- Modal for displaying all users on mobile -->
     <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content" style="max-height: 70vh; overflow-y: auto">
         <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
@@ -61,7 +67,7 @@
       </div>
     </div>
 
-    <!-- Main UI -->
+    <!-- Main Application UI -->
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
@@ -69,22 +75,27 @@
         <button id="showUsersBtn">👥 Users</button>
       </div>
     </div>
+
     <div class="container">
+      <!-- Sidebar for user list and settings -->
       <div id="sidebar">
         <div id="userListContainer" style="flex: 1; overflow-y: auto">
-          <h3 style="margin-bottom: 12px">👥 Users</h3>
+          <h3 style="margin-bottom: 12px">👥 Online Users</h3>
           <div id="userList"></div>
         </div>
-        <!-- Background Settings -->
         <div class="background-settings">
           <h4>🎨 Room Background</h4>
-          <input type="text" id="backgroundInput" placeholder="Image URL..." />
-          <button id="setBackgroundBtn">Set Background</button>
+          <div id="backgroundOptions" class="background-options-grid">
+            <!-- Background options will be dynamically inserted here by script.js -->
+          </div>
         </div>
       </div>
+
+      <!-- Main chat area -->
       <div id="chat">
-        <div id="messages"></div>
-        <!-- NEW HTML STRUCTURE FOR INPUT AREA -->
+        <div id="messages">
+          <!-- Chat messages will appear here -->
+        </div>
         <div id="input-area">
           <div id="typing-indicator"></div>
           <div id="error-message"></div>
@@ -101,7 +112,10 @@
         </div>
       </div>
     </div>
+
+    <!-- Include Socket.IO client library -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- Include your custom client-side script -->
     <script src="script.js"></script>
   </body>
 </html>

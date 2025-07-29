@@ -11,8 +11,7 @@ const showUsersBtn = document.getElementById("showUsersBtn");
 const themeToggleBtn = document.getElementById("theme-toggle");
 const typingIndicator = document.getElementById("typing-indicator");
 const errorMessage = document.getElementById("error-message");
-const backgroundInput = document.getElementById("backgroundInput");
-const setBackgroundBtn = document.getElementById("setBackgroundBtn");
+const backgroundOptionsContainer = document.getElementById("backgroundOptions");
 
 // Modal elements
 const userModal = document.getElementById("userModal");
@@ -25,33 +24,37 @@ const allUsersModal = document.getElementById("allUsersModal");
 const allUsersList = document.getElementById("allUsersList");
 
 // --- Application State ---
-let latestUsers = []; // Cache of the current user list
-let unreadPrivate = {}; // Tracks unread messages from users { userId: true }
-let currentRoom = "public"; // The room the user is currently in
-let myId = null; // The user's own socket ID
+let latestUsers = [];
+let unreadPrivate = {};
+let currentRoom = "public";
+let myId = null;
 
-// --- TYPING INDICATOR LOGIC (FIXED) ---
+// --- PREDEFINED BACKGROUNDS (Client-side) ---
+// This array must match the one on the server for IDs to work correctly.
+const predefinedBackgrounds = [
+  "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1575&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=1470&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1332&auto=format&fit=crop",
+];
+
+// --- TYPING INDICATOR LOGIC ---
 let typingTimer;
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 1500; // 1.5 seconds
 
-// This event listener now correctly handles the start and stop of typing.
 input.addEventListener("input", () => {
-  // If the user starts typing and we haven't notified others yet, send the "typing" event.
   if (!isTyping) {
     isTyping = true;
     socket.emit("typing", { room: currentRoom });
   }
-  // Clear any previous "stop typing" timer.
   clearTimeout(typingTimer);
-  // Set a new timer. If it completes without being cleared, it means the user has paused, so we send "stop typing".
   typingTimer = setTimeout(() => {
     isTyping = false;
     socket.emit("stop typing", { room: currentRoom });
   }, TYPING_TIMER_LENGTH);
 });
 
-// Show the indicator when someone is typing.
 socket.on("typing", ({ name, room }) => {
   if (room === currentRoom) {
     typingIndicator.textContent = `${name} is typing...`;
@@ -59,11 +62,8 @@ socket.on("typing", ({ name, room }) => {
   }
 });
 
-// Hide the indicator when they stop.
 socket.on("stop typing", ({ room }) => {
   if (room === currentRoom) {
-    // This simple implementation hides the indicator when any user stops.
-    // A more advanced version would manage a list of all typing users.
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
   }
@@ -105,15 +105,16 @@ function showUserModal() {
     }
     if (!age || isNaN(age) || age < 18 || age > 99) {
       ageInput.focus();
-      ageInput.style.borderColor = "#e75480";
+      ageInput.style.borderColor = "var(--error-color)";
       return;
     }
     socket.emit("user info", { nickname, gender, age });
     userModal.style.display = "none";
-    socket.emit("join room", "public");
+    socket.emit("join room", "public"); // Automatically join public chat
   };
 }
 
+// Handle connection event
 socket.on("connect", () => {
   myId = socket.id;
   showUserModal();
@@ -122,20 +123,17 @@ socket.on("connect", () => {
 // Handle form submission to send a message
 form.addEventListener("submit", (e) => {
   e.preventDefault();
-  if (input.value) {
+  if (input.value.trim()) {
     socket.emit("chat message", { room: currentRoom, text: input.value });
-
-    // --- FIX: Explicitly stop typing indicator on message send ---
     clearTimeout(typingTimer);
     isTyping = false;
     socket.emit("stop typing", { room: currentRoom });
-
     input.value = "";
     setTimeout(() => input.focus(), 10); // Refocus input after sending
   }
 });
 
-// Helper functions for styling
+// Helper functions for styling user info
 function getGenderSymbol(gender) {
   return gender === "female" ? "♀" : "♂";
 }
@@ -161,14 +159,15 @@ function addMessage(msg) {
       : "";
 
   item.innerHTML = `
-  <div class="bubble">
-    <span style="color:${getNameColor(msg.gender)};font-weight:600;">
-      ${msg.name} ${getGenderSymbol(msg.gender)}${
+    <div class="bubble">
+      <span style="color:${getNameColor(msg.gender)};">
+        ${msg.name} ${getGenderSymbol(msg.gender)}${
     msg.age ? " · " + msg.age : ""
-  }:</span> ${msg.text}
-    ${readReceiptHTML}
-  </div>
-`;
+  }
+      </span>
+      ${msg.text}
+      ${readReceiptHTML}
+    </div>`;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
 
@@ -183,15 +182,17 @@ function addMessage(msg) {
 
 // Listener for incoming chat messages
 socket.on("chat message", (msg) => {
-  // When a message arrives, ensure the typing indicator for that user stops.
+  // Stop typing indicator when a message arrives from someone
   if (msg.room === currentRoom) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
   }
+  // Handle unread message notifications for private chats
   if (msg.room !== "public" && currentRoom !== msg.room && msg.to === myId) {
     unreadPrivate[msg.id] = true;
     updateUserList();
   }
+  // Display the message if it's for the current room
   if (msg.room === currentRoom) {
     addMessage(msg);
     if (msg.room !== "public") {
@@ -211,19 +212,22 @@ socket.on("room history", (msgs) => {
 // Updates the user list in the sidebar
 function updateUserList() {
   userList.innerHTML = "";
+  // Add public room button
   const publicBtn = document.createElement("div");
   publicBtn.className = "user";
   publicBtn.textContent = "🌐 Public Room";
   publicBtn.onclick = () => switchRoom("public", "🌐 Public Chat");
   userList.appendChild(publicBtn);
 
+  // Add all other online users
   latestUsers.forEach((user) => {
-    if (user.id === myId) return;
+    if (user.id === myId) return; // Don't show myself in the list
     const div = document.createElement("div");
     div.className = "user";
     div.innerHTML =
-      `<span style="color:${getNameColor(user.gender)};font-weight:600;">
-    ${user.name} ${getGenderSymbol(user.gender)}${
+      `<span style="color:${getNameColor(user.gender)};">${
+        user.name
+      } ${getGenderSymbol(user.gender)}${
         user.age ? " · " + user.age : ""
       }</span>` +
       (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
@@ -231,7 +235,7 @@ function updateUserList() {
       const privateRoomName = [myId, user.id].sort().join("-");
       switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
       delete unreadPrivate[user.id]; // Mark as read on click
-      updateUserList();
+      updateUserList(); // Refresh list to remove red dot
     };
     userList.appendChild(div);
   });
@@ -246,17 +250,14 @@ function switchRoom(roomName, title) {
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
 
-  // --- BACKGROUND IMAGE LOGIC ---
   // Reset background and remove the helper class when switching rooms
-  // The server will send the new room's background if one is set
   messages.style.backgroundImage = "none";
   messages.classList.remove("has-background");
-  // --- END BACKGROUND IMAGE LOGIC ---
 
   socket.emit("join room", currentRoom);
 }
 
-// Listener for user list updates
+// Listener for user list updates from server
 socket.on("user list", (users) => {
   latestUsers = users;
   updateUserList();
@@ -264,7 +265,8 @@ socket.on("user list", (users) => {
 
 // --- Mobile-specific Logic ---
 showUsersBtn.onclick = () => {
-  allUsersList.innerHTML = "";
+  allUsersList.innerHTML = ""; // Clear previous list
+  // Add public room button to mobile modal
   const publicBtn = document.createElement("div");
   publicBtn.className = "user";
   publicBtn.textContent = "🌐 Public Room";
@@ -274,13 +276,15 @@ showUsersBtn.onclick = () => {
   };
   allUsersList.appendChild(publicBtn);
 
+  // Add all other users to mobile modal
   latestUsers.forEach((user) => {
     if (user.id === myId) return;
     const div = document.createElement("div");
     div.className = "user";
     div.innerHTML =
-      `<span style="color:${getNameColor(user.gender)};font-weight:600;">
-      ${user.name} ${getGenderSymbol(user.gender)}${
+      `<span style="color:${getNameColor(user.gender)};">${
+        user.name
+      } ${getGenderSymbol(user.gender)}${
         user.age ? " · " + user.age : ""
       }</span>` +
       (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
@@ -296,6 +300,7 @@ showUsersBtn.onclick = () => {
   allUsersModal.style.display = "flex";
 };
 
+// Close modal if clicking outside the content area
 allUsersModal.addEventListener("click", (e) => {
   if (e.target === allUsersModal) {
     allUsersModal.style.display = "none";
@@ -304,6 +309,7 @@ allUsersModal.addEventListener("click", (e) => {
 
 // --- Event Listeners for New Features ---
 
+// Display rate limit errors
 socket.on("rate limit", (msg) => {
   errorMessage.textContent = msg;
   errorMessage.style.opacity = "1";
@@ -313,6 +319,7 @@ socket.on("rate limit", (msg) => {
   }, 3000);
 });
 
+// Update read receipts
 socket.on("message was read", ({ room, messageId }) => {
   if (room === currentRoom) {
     const messageEl = document.querySelector(
@@ -328,34 +335,34 @@ socket.on("message was read", ({ room, messageId }) => {
   }
 });
 
-setBackgroundBtn.addEventListener("click", () => {
-  const url = backgroundInput.value.trim();
-  if (url) {
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      socket.emit("set background", { room: currentRoom, backgroundUrl: url });
-      backgroundInput.value = "";
-    } else {
-      errorMessage.textContent = "Please enter a valid URL.";
-      errorMessage.style.opacity = "1";
-      setTimeout(() => {
-        errorMessage.style.opacity = "0";
-      }, 3000);
-    }
-  }
-});
+// --- Background Image Logic ---
+// This function creates the clickable background thumbnails in the sidebar.
+function populateBackgroundOptions() {
+  predefinedBackgrounds.forEach((url, index) => {
+    const option = document.createElement("div");
+    option.className = "background-option";
+    option.style.backgroundImage = `url(${url})`;
+    option.title = `Set background ${index + 1}`; // Helpful for accessibility
 
-// --- BACKGROUND IMAGE LOGIC ---
+    // When a thumbnail is clicked, emit the event to the server.
+    option.addEventListener("click", () => {
+      socket.emit("set background", { room: currentRoom, backgroundId: index });
+    });
+
+    backgroundOptionsContainer.appendChild(option);
+  });
+}
+
 // Listen for background updates from the server
 socket.on("background updated", ({ room, backgroundUrl }) => {
   if (room === currentRoom) {
     messages.style.backgroundImage = `url(${backgroundUrl})`;
-    // Add a class to enable semi-transparent bubble styles
     messages.classList.add("has-background");
   }
 });
-// --- END BACKGROUND IMAGE LOGIC ---
 
 // --- Mobile Keyboard & Initialization ---
+// Adjusts viewport height for mobile browsers to avoid issues with on-screen keyboards.
 function adjustHeightForKeyboard() {
   if (window.innerWidth <= 768) {
     let vh = window.innerHeight * 0.01;
@@ -365,8 +372,10 @@ function adjustHeightForKeyboard() {
 
 window.addEventListener("resize", adjustHeightForKeyboard);
 
+// On initial page load
 window.addEventListener("load", () => {
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
   adjustHeightForKeyboard();
+  populateBackgroundOptions(); // Create the background options
 });

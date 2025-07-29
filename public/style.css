@@ -3,16 +3,16 @@
   --vh: 1vh;
   /* Light Theme Colors */
   --bg-color: #f3f4f6;
-  --text-color: #222;
-  --sidebar-bg: #fff;
+  --text-color: #1f2937;
+  --sidebar-bg: #ffffff;
   --border-color: #e5e7eb;
-  --chat-bg: #fff;
+  --chat-bg: #ffffff;
   --other-bubble-bg: #f3f4f6;
-  --input-bg: #f3f4f6;
-  --topbar-bg: #fff;
+  --input-bg: #f9fafb;
+  --topbar-bg: #ffffff;
   --user-bg: #f3f4f6;
   --user-hover-bg: #e5e7eb;
-  --modal-content-bg: #fff;
+  --modal-content-bg: #ffffff;
   --primary-accent: #4f46e5;
   --primary-accent-hover: #4338ca;
   --shadow-color: rgba(0, 0, 0, 0.05);
@@ -37,7 +37,7 @@ body.dark-mode {
 
 body {
   margin: 0;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
   background: var(--bg-color);
   color: var(--text-color);
   display: flex;
@@ -45,14 +45,16 @@ body {
   height: 100vh;
   transition: background-color 0.3s, color 0.3s;
 }
+
 .container {
   flex: 1;
   display: flex;
   overflow: hidden;
   height: 100%;
 }
+
 #sidebar {
-  width: 240px;
+  width: 260px;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border-color);
   padding: 16px;
@@ -62,64 +64,72 @@ body {
   display: flex;
   flex-direction: column;
 }
+
 #chat {
   flex: 1;
   display: flex;
   flex-direction: column;
   padding: 16px;
   box-sizing: border-box;
+  background: var(--bg-color);
 }
+
 #roomTitle {
   font-size: 1.2rem;
   font-weight: 600;
 }
+
 #messages {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
   background: var(--chat-bg);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: 0 1px 3px var(--shadow-color);
   margin-bottom: 8px;
   transition: background-color 0.3s, border-color 0.3s, background-image 0.5s;
-  /* Styles for background image */
   background-size: cover;
   background-position: center;
 }
+
 .msg {
   display: flex;
   margin-bottom: 10px;
   position: relative;
 }
+
 .msg.me {
   justify-content: flex-end;
 }
+
 .msg.other {
   justify-content: flex-start;
 }
+
 .bubble {
   padding: 10px 16px;
   border-radius: 18px;
-  max-width: 70%;
+  max-width: 75%;
   word-break: break-word;
   box-shadow: 0 1px 4px rgba(79, 70, 229, 0.06);
   position: relative;
-  transition: background-color 0.3s;
+  line-height: 1.4;
 }
+
 .msg.me .bubble {
   background: var(--primary-accent);
   color: #fff;
   border-bottom-right-radius: 6px;
-  /* Space for read receipt */
-  padding-right: 30px;
+  padding-right: 30px; /* Space for read receipt */
 }
+
 .msg.other .bubble {
   background: var(--other-bubble-bg);
   color: var(--text-color);
   border-bottom-left-radius: 6px;
 }
-/* Read receipt styles */
+
 .read-receipt {
   position: absolute;
   bottom: 5px;
@@ -127,88 +137,122 @@ body {
   font-size: 14px;
   font-weight: bold;
   color: rgba(255, 255, 255, 0.7);
-}
-.read-receipt.read {
-  color: #86efac; /* A light green for 'read' */
-}
-.msg span {
-  font-weight: 600;
+  transition: color 0.3s;
 }
 
-/* --- Styles for when a background image is active --- */
-#messages.has-background {
-  background-color: transparent; /* Allows background image to show */
+.read-receipt.read {
+  color: #86efac; /* A light green for read status */
 }
+
+.msg .bubble > span {
+  /* The user's name */
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* Styles for when a background image is applied */
+#messages.has-background {
+  background-color: transparent; /* Let the image show through */
+}
+
 #messages.has-background .msg.me .bubble {
   background-color: rgba(
     79,
     70,
     229,
     0.85
-  ); /* Semi-transparent primary accent */
+  ); /* Semi-transparent for my messages */
 }
+
 #messages.has-background .msg.other .bubble {
-  background-color: rgba(255, 255, 255, 0.75); /* Semi-transparent light */
+  background-color: rgba(
+    255,
+    255,
+    255,
+    0.8
+  ); /* Semi-transparent for other's messages */
   backdrop-filter: blur(2px);
+  color: #1f2937; /* Ensure text is readable on light background */
 }
+
 body.dark-mode #messages.has-background .msg.other .bubble {
-  background-color: rgba(55, 65, 81, 0.75); /* Semi-transparent dark */
+  background-color: rgba(
+    55,
+    65,
+    81,
+    0.8
+  ); /* Darker semi-transparent for dark mode */
+  color: #e5e7eb; /* Ensure text is readable on dark background */
 }
-/* --- END Background Image Styles --- */
 
 #input-area {
   display: flex;
   flex-direction: column;
 }
+
 #form {
   display: flex;
   margin-top: 12px;
   gap: 10px;
 }
+
 #input {
   flex: 1;
   padding: 12px;
   font-size: 16px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--input-bg);
   color: var(--text-color);
   transition: background-color 0.3s, border-color 0.3s, color 0.3s;
 }
+#input:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
 button {
-  padding: 12px 16px;
+  padding: 12px 18px;
   background: var(--primary-accent);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
 }
+
 button:hover {
   background: var(--primary-accent-hover);
 }
+
 .user {
   background: var(--user-bg);
-  padding: 10px;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
   margin-bottom: 8px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, transform 0.1s;
   position: relative;
+  font-weight: 500;
 }
 .user:hover {
   background: var(--user-hover-bg);
+  transform: translateY(-1px);
 }
+
 .red-dot {
   display: inline-block;
   width: 10px;
   height: 10px;
   background: #e11d48;
   border-radius: 50%;
-  margin-left: 6px;
+  margin-left: 8px;
   vertical-align: middle;
 }
+
 #topBar {
   background: var(--topbar-bg);
   padding: 12px 16px;
@@ -221,11 +265,13 @@ button:hover {
   box-sizing: border-box;
   transition: background-color 0.3s, box-shadow 0.3s;
 }
+
 .top-bar-buttons {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
 #theme-toggle {
   background: none;
   border: 1px solid var(--border-color);
@@ -235,16 +281,18 @@ button:hover {
   height: 40px;
   font-size: 18px;
   line-height: 1;
+  border-radius: 50%;
 }
 #theme-toggle:hover {
   background: var(--user-hover-bg);
 }
+
 #showUsersBtn {
-  display: none;
+  display: none; /* Hidden on desktop */
   background: var(--primary-accent);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 600;
   padding: 8px 16px;
   cursor: pointer;
@@ -258,12 +306,14 @@ button:hover {
   font-style: italic;
   color: #6b7280;
   transition: all 0.3s ease;
-  opacity: 0; /* Initially hidden */
+  opacity: 0;
 }
+
 #error-message {
   color: var(--error-color);
   font-weight: 600;
 }
+
 body.dark-mode #typing-indicator {
   color: #9ca3af;
 }
@@ -274,24 +324,32 @@ body.dark-mode #typing-indicator {
   border-top: 1px solid var(--border-color);
 }
 .background-settings h4 {
-  margin: 0 0 8px 0;
-}
-.background-settings input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  margin-bottom: 8px;
-  background: var(--input-bg);
-  color: var(--text-color);
-}
-.background-settings button {
-  width: 100%;
-  padding: 8px;
-  font-size: 14px;
+  margin: 0 0 12px 0;
+  font-weight: 600;
 }
 
+.background-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 8px;
+}
+
+.background-option {
+  width: 100%;
+  padding-top: 100%; /* Creates a square aspect ratio */
+  border-radius: 8px;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.background-option:hover {
+  border-color: var(--primary-accent);
+  transform: scale(1.05);
+}
+
+/* Modal styles */
 .modal {
   position: fixed;
   z-index: 1000;
@@ -299,31 +357,34 @@ body.dark-mode #typing-indicator {
   top: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(79, 70, 229, 0.08);
+  background: rgba(17, 24, 39, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .modal-content {
   background: var(--modal-content-bg);
   padding: 32px 24px;
   border-radius: 14px;
-  box-shadow: 0 4px 24px rgba(79, 70, 229, 0.12);
-  min-width: 280px;
+  box-shadow: 0 4px 24px var(--shadow-color);
+  min-width: 320px;
   max-width: 92vw;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   box-sizing: border-box;
   transition: background-color 0.3s;
 }
+
 .modal-content input[type="text"],
 .modal-content input[type="number"] {
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: 8px;
+  padding: 12px;
   font-size: 16px;
   margin-bottom: 10px;
   background-color: var(--input-bg);
@@ -331,7 +392,9 @@ body.dark-mode #typing-indicator {
 }
 .modal-content input:focus {
   border-color: var(--primary-accent);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
 }
+
 .gender-group {
   display: flex;
   justify-content: center;
@@ -341,18 +404,20 @@ body.dark-mode #typing-indicator {
 .gender-group label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
   font-size: 16px;
 }
+
 input[type="text"],
 input[type="search"],
 input[type="email"],
 input[type="password"],
 input[type="number"] {
-  font-size: 16px;
+  font-size: 16px; /* Fix for iOS zoom on input focus */
 }
 
+/* Responsive styles for mobile devices */
 @media (max-width: 768px) {
   body {
     height: calc(var(--vh, 1vh) * 100);
@@ -377,15 +442,14 @@ input[type="number"] {
     z-index: 20;
   }
   #chat {
-    padding-top: 68px; /* Space for top bar */
+    padding-top: 68px; /* Space for the fixed top bar */
     height: 100%;
     overflow: hidden;
   }
   #messages {
     flex: 1;
     margin-bottom: 0;
-    /* Increased padding to make space for form AND typing indicator */
-    padding-bottom: 100px;
+    padding-bottom: 100px; /* Space for the fixed input area */
   }
   #input-area {
     position: fixed;
@@ -399,7 +463,7 @@ input[type="number"] {
     box-sizing: border-box;
   }
   #form {
-    margin-top: 0; /* Reset margin */
+    margin-top: 0;
   }
   button {
     width: auto;
@@ -408,10 +472,6 @@ input[type="number"] {
 }
 
 @media (max-width: 480px) {
-  .user {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
   #roomTitle {
     font-size: 1rem;
   }
