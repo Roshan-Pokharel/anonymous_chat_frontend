@@ -213,6 +213,20 @@
         font-size: 16px;
       }
 
+      /* --- ✨ NEW FEATURE: TYPING INDICATOR STYLE --- */
+      #typing-indicator {
+        height: 20px;
+        padding: 0 12px;
+        font-style: italic;
+        color: #6b7280;
+        transition: all 0.3s ease;
+        opacity: 0;
+      }
+      body.dark-mode #typing-indicator {
+        color: #9ca3af;
+      }
+      /* --- END OF NEW FEATURE --- */
+
       /* Modal Styles */
       .modal {
         position: fixed;
@@ -342,7 +356,6 @@
     </style>
   </head>
   <body>
-    <!-- Modals -->
     <div id="userModal" class="modal">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -387,7 +400,6 @@
       </div>
     </div>
 
-    <!-- Main UI -->
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
@@ -402,6 +414,7 @@
       </div>
       <div id="chat">
         <div id="messages"></div>
+        <div id="typing-indicator"></div>
         <form id="form" autocomplete="off">
           <input
             id="input"

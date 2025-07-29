@@ -8,6 +8,10 @@ const roomTitle = document.getElementById("roomTitle");
 const showUsersBtn = document.getElementById("showUsersBtn");
 const themeToggleBtn = document.getElementById("theme-toggle");
 
+// --- ✨ NEW FEATURE: TYPING INDICATOR ELEMENT ---
+const typingIndicator = document.getElementById("typing-indicator");
+// --- END OF NEW FEATURE ---
+
 // Modal elements
 const userModal = document.getElementById("userModal");
 const userForm = document.getElementById("userForm");
@@ -23,6 +27,39 @@ let latestUsers = [];
 let unreadPrivate = {};
 let currentRoom = "public";
 let myId = null;
+
+// --- ✨ NEW FEATURE: TYPING INDICATOR LOGIC ---
+let typingTimer;
+let isTyping = false;
+const TYPING_TIMER_LENGTH = 1500; // 1.5 seconds
+
+input.addEventListener("input", () => {
+  if (!isTyping) {
+    isTyping = true;
+    socket.emit("typing", { room: currentRoom });
+  }
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => {
+    isTyping = false;
+    socket.emit("stop typing", { room: currentRoom });
+  }, TYPING_TIMER_LENGTH);
+});
+
+socket.on("typing", ({ name, room }) => {
+  if (room === currentRoom) {
+    typingIndicator.textContent = `${name} is typing...`;
+    typingIndicator.style.opacity = "1";
+  }
+});
+
+socket.on("stop typing", ({ room }) => {
+  if (room === currentRoom) {
+    typingIndicator.textContent = "";
+    typingIndicator.style.opacity = "0";
+  }
+});
+
+// --- END OF NEW FEATURE ---
 
 // --- THEME/DARK MODE LOGIC ---
 function applyTheme(theme) {
@@ -84,6 +121,11 @@ form.addEventListener("submit", (e) => {
   e.preventDefault();
   if (input.value) {
     socket.emit("chat message", { room: currentRoom, text: input.value });
+    // --- ✨ NEW FEATURE: STOP TYPING ON SEND ---
+    clearTimeout(typingTimer);
+    isTyping = false;
+    socket.emit("stop typing", { room: currentRoom });
+    // --- END OF NEW FEATURE ---
     input.value = "";
     setTimeout(() => input.focus(), 10);
   }
@@ -123,6 +165,12 @@ function addMessage(msg) {
 }
 
 socket.on("chat message", (msg) => {
+  // --- ✨ NEW FEATURE: HIDE TYPING INDICATOR ON MESSAGE RECEIPT ---
+  if (msg.room === currentRoom) {
+    typingIndicator.textContent = "";
+    typingIndicator.style.opacity = "0";
+  }
+  // --- END OF NEW FEATURE ---
   if (msg.room !== "public" && currentRoom !== msg.room && msg.to === myId) {
     unreadPrivate[msg.id] = true;
     updateUserList();
@@ -151,6 +199,10 @@ function updateUserList() {
     currentRoom = "public";
     roomTitle.textContent = "🌐 Public Chat";
     messages.innerHTML = "";
+    // --- ✨ NEW FEATURE: CLEAR TYPING INDICATOR ON ROOM CHANGE ---
+    typingIndicator.textContent = "";
+    typingIndicator.style.opacity = "0";
+    // --- END OF NEW FEATURE ---
     socket.emit("join room", currentRoom);
   };
   userList.appendChild(publicBtn);
@@ -169,6 +221,10 @@ function updateUserList() {
       currentRoom = [myId, user.id].sort().join("-");
       roomTitle.textContent = `🔒 Chat with ${user.name}`;
       messages.innerHTML = "";
+      // --- ✨ NEW FEATURE: CLEAR TYPING INDICATOR ON ROOM CHANGE ---
+      typingIndicator.textContent = "";
+      typingIndicator.style.opacity = "0";
+      // --- END OF NEW FEATURE ---
       socket.emit("join room", currentRoom);
       unreadPrivate[user.id] = false;
       updateUserList();
@@ -194,6 +250,10 @@ showUsersBtn.onclick = () => {
       currentRoom = "public";
       roomTitle.textContent = "🌐 Public Chat";
       messages.innerHTML = "";
+      // --- ✨ NEW FEATURE: CLEAR TYPING INDICATOR ON ROOM CHANGE ---
+      typingIndicator.textContent = "";
+      typingIndicator.style.opacity = "0";
+      // --- END OF NEW FEATURE ---
       socket.emit("join room", currentRoom);
       allUsersModal.style.display = "none";
     };
@@ -219,6 +279,10 @@ showUsersBtn.onclick = () => {
         currentRoom = [myId, user.id].sort().join("-");
         roomTitle.textContent = `🔒 Chat with ${user.name}`;
         messages.innerHTML = "";
+        // --- ✨ NEW FEATURE: CLEAR TYPING INDICATOR ON ROOM CHANGE ---
+        typingIndicator.textContent = "";
+        typingIndicator.style.opacity = "0";
+        // --- END OF NEW FEATURE ---
         socket.emit("join room", currentRoom);
         unreadPrivate[user.id] = false;
         updateUserList();
