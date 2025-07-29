@@ -111,10 +111,12 @@ body {
   padding: 10px 16px;
   border-radius: 18px;
   max-width: 75%;
-  word-break: break-word;
   box-shadow: 0 1px 4px rgba(79, 70, 229, 0.06);
   position: relative;
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .msg.me .bubble {
@@ -273,13 +275,14 @@ button:hover {
 }
 
 #theme-toggle {
-  background: none;
-  border: 1px solid var(--border-color);
+  background: transparent;
+  border: none;
   color: var(--text-color);
   padding: 8px;
-  font-size: 18px;
+  font-size: 24px;
   line-height: 1;
   border-radius: 8px; /* Default border radius */
+  cursor: pointer;
 }
 #theme-toggle:hover {
   background: var(--user-hover-bg);
