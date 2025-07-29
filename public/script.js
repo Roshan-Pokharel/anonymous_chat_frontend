@@ -30,26 +30,28 @@ let unreadPrivate = {}; // Tracks unread messages from users { userId: true }
 let currentRoom = "public"; // The room the user is currently in
 let myId = null; // The user's own socket ID
 
-// --- Typing Indicator Logic ---
+// --- TYPING INDICATOR LOGIC (FIXED) ---
 let typingTimer;
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 1500; // 1.5 seconds
 
+// This event listener now correctly handles the start and stop of typing.
 input.addEventListener("input", () => {
-  if (input.value.length > 0 && !isTyping) {
+  // If the user starts typing and we haven't notified others yet, send the "typing" event.
+  if (!isTyping) {
     isTyping = true;
     socket.emit("typing", { room: currentRoom });
   }
+  // Clear any previous "stop typing" timer.
   clearTimeout(typingTimer);
+  // Set a new timer. If it completes without being cleared, it means the user has paused, so we send "stop typing".
   typingTimer = setTimeout(() => {
-    // If input is cleared, immediately stop typing
-    if (input.value.length === 0) {
-      isTyping = false;
-      socket.emit("stop typing", { room: currentRoom });
-    }
+    isTyping = false;
+    socket.emit("stop typing", { room: currentRoom });
   }, TYPING_TIMER_LENGTH);
 });
 
+// Show the indicator when someone is typing.
 socket.on("typing", ({ name, room }) => {
   if (room === currentRoom) {
     typingIndicator.textContent = `${name} is typing...`;
@@ -57,8 +59,11 @@ socket.on("typing", ({ name, room }) => {
   }
 });
 
+// Hide the indicator when they stop.
 socket.on("stop typing", ({ room }) => {
   if (room === currentRoom) {
+    // This simple implementation hides the indicator when any user stops.
+    // A more advanced version would manage a list of all typing users.
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
   }
@@ -119,9 +124,12 @@ form.addEventListener("submit", (e) => {
   e.preventDefault();
   if (input.value) {
     socket.emit("chat message", { room: currentRoom, text: input.value });
+
+    // --- FIX: Explicitly stop typing indicator on message send ---
     clearTimeout(typingTimer);
     isTyping = false;
     socket.emit("stop typing", { room: currentRoom });
+
     input.value = "";
     setTimeout(() => input.focus(), 10); // Refocus input after sending
   }
@@ -153,14 +161,14 @@ function addMessage(msg) {
       : "";
 
   item.innerHTML = `
-    <div class="bubble">
-      <span style="color:${getNameColor(msg.gender)};font-weight:600;">
-        ${msg.name} ${getGenderSymbol(msg.gender)}${
+  <div class="bubble">
+    <span style="color:${getNameColor(msg.gender)};font-weight:600;">
+      ${msg.name} ${getGenderSymbol(msg.gender)}${
     msg.age ? " · " + msg.age : ""
   }:</span> ${msg.text}
-      ${readReceiptHTML}
-    </div>
-  `;
+    ${readReceiptHTML}
+  </div>
+`;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
 
@@ -175,6 +183,7 @@ function addMessage(msg) {
 
 // Listener for incoming chat messages
 socket.on("chat message", (msg) => {
+  // When a message arrives, ensure the typing indicator for that user stops.
   if (msg.room === currentRoom) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
@@ -214,7 +223,7 @@ function updateUserList() {
     div.className = "user";
     div.innerHTML =
       `<span style="color:${getNameColor(user.gender)};font-weight:600;">
-      ${user.name} ${getGenderSymbol(user.gender)}${
+    ${user.name} ${getGenderSymbol(user.gender)}${
         user.age ? " · " + user.age : ""
       }</span>` +
       (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
@@ -237,11 +246,12 @@ function switchRoom(roomName, title) {
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
 
-  // --- FIX FOR BACKGROUND IMAGE ---
+  // --- BACKGROUND IMAGE LOGIC ---
   // Reset background and remove the helper class when switching rooms
+  // The server will send the new room's background if one is set
   messages.style.backgroundImage = "none";
   messages.classList.remove("has-background");
-  // --- END FIX ---
+  // --- END BACKGROUND IMAGE LOGIC ---
 
   socket.emit("join room", currentRoom);
 }
@@ -270,7 +280,7 @@ showUsersBtn.onclick = () => {
     div.className = "user";
     div.innerHTML =
       `<span style="color:${getNameColor(user.gender)};font-weight:600;">
-        ${user.name} ${getGenderSymbol(user.gender)}${
+      ${user.name} ${getGenderSymbol(user.gender)}${
         user.age ? " · " + user.age : ""
       }</span>` +
       (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
@@ -334,7 +344,7 @@ setBackgroundBtn.addEventListener("click", () => {
   }
 });
 
-// --- FIX FOR BACKGROUND IMAGE ---
+// --- BACKGROUND IMAGE LOGIC ---
 // Listen for background updates from the server
 socket.on("background updated", ({ room, backgroundUrl }) => {
   if (room === currentRoom) {
@@ -343,7 +353,7 @@ socket.on("background updated", ({ room, backgroundUrl }) => {
     messages.classList.add("has-background");
   }
 });
-// --- END FIX ---
+// --- END BACKGROUND IMAGE LOGIC ---
 
 // --- Mobile Keyboard & Initialization ---
 function adjustHeightForKeyboard() {
