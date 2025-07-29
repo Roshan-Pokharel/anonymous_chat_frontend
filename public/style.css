@@ -277,11 +277,9 @@ button:hover {
   border: 1px solid var(--border-color);
   color: var(--text-color);
   padding: 8px;
-  width: 40px;
-  height: 40px;
   font-size: 18px;
   line-height: 1;
-  border-radius: 50%;
+  border-radius: 8px; /* Default border radius */
 }
 #theme-toggle:hover {
   background: var(--user-hover-bg);
@@ -326,6 +324,12 @@ body.dark-mode #typing-indicator {
 .background-settings h4 {
   margin: 0 0 12px 0;
   font-weight: 600;
+}
+
+.background-settings-mobile {
+  border-top: 1px solid var(--border-color);
+  margin-top: 16px;
+  padding-top: 8px;
 }
 
 .background-options-grid {
@@ -447,9 +451,10 @@ input[type="number"] {
     display: none;
   }
 
-  /* HIDE THE BACKGROUND SETTINGS ON MOBILE */
-  .background-settings {
-    display: none;
+  #theme-toggle {
+    border-radius: 50%; /* Make button round on mobile */
+    width: 40px;
+    height: 40px;
   }
 
   #topBar {

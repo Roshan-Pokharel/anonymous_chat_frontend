@@ -51,13 +51,24 @@
       </form>
     </div>
 
-    <!-- Modal for displaying all users on mobile -->
+    <!-- Modal for displaying all users and settings on mobile -->
     <div id="allUsersModal" class="modal" style="display: none">
-      <div class="modal-content" style="max-height: 70vh; overflow-y: auto">
+      <div class="modal-content" style="max-height: 80vh; overflow-y: auto">
         <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
           Online Users
         </h3>
         <div id="allUsersList"></div>
+
+        <!-- Mobile Background Settings -->
+        <div class="background-settings-mobile">
+          <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
+            🎨 Chat Background
+          </h4>
+          <div id="backgroundOptionsMobile" class="background-options-grid">
+            <!-- Mobile background options will be dynamically inserted here -->
+          </div>
+        </div>
+
         <button
           onclick="document.getElementById('allUsersModal').style.display='none';"
           style="margin-top: 16px"
@@ -77,7 +88,7 @@
     </div>
 
     <div class="container">
-      <!-- Sidebar for user list and settings -->
+      <!-- Sidebar for user list and settings (Desktop) -->
       <div id="sidebar">
         <div id="userListContainer" style="flex: 1; overflow-y: auto">
           <h3 style="margin-bottom: 12px">👥 Online Users</h3>
@@ -86,7 +97,7 @@
         <div class="background-settings">
           <h4>🎨 Room Background</h4>
           <div id="backgroundOptions" class="background-options-grid">
-            <!-- Background options will be dynamically inserted here by script.js -->
+            <!-- Desktop background options will be dynamically inserted here -->
           </div>
         </div>
       </div>

@@ -12,6 +12,9 @@ const themeToggleBtn = document.getElementById("theme-toggle");
 const typingIndicator = document.getElementById("typing-indicator");
 const errorMessage = document.getElementById("error-message");
 const backgroundOptionsContainer = document.getElementById("backgroundOptions");
+const backgroundOptionsMobileContainer = document.getElementById(
+  "backgroundOptionsMobile"
+);
 
 // Modal elements
 const userModal = document.getElementById("userModal");
@@ -291,6 +294,10 @@ showUsersBtn.onclick = () => {
     };
     allUsersList.appendChild(div);
   });
+
+  // Populate background options in the modal
+  populateBackgroundOptions(backgroundOptionsMobileContainer);
+
   allUsersModal.style.display = "flex";
 };
 
@@ -345,8 +352,12 @@ function applyBackground(backgroundUrl) {
   }
 }
 
-// This function creates the clickable background thumbnails in the sidebar.
-function populateBackgroundOptions() {
+// This function creates the clickable background thumbnails.
+// It now accepts a container element to be more reusable.
+function populateBackgroundOptions(container) {
+  if (!container) return;
+  container.innerHTML = ""; // Clear existing options to prevent duplicates
+
   // Add a "Default" button first
   const defaultOption = document.createElement("button");
   defaultOption.className = "background-option-default";
@@ -355,20 +366,20 @@ function populateBackgroundOptions() {
   defaultOption.addEventListener("click", () => {
     applyBackground(null); // Pass null to clear the background
   });
-  backgroundOptionsContainer.appendChild(defaultOption);
+  container.appendChild(defaultOption);
 
   // Add the predefined image thumbnails
   predefinedBackgrounds.forEach((url) => {
     const option = document.createElement("div");
     option.className = "background-option";
     option.style.backgroundImage = `url(${url})`;
-    option.title = `Set background`; // Helpful for accessibility
+    option.title = `Set background`;
 
     option.addEventListener("click", () => {
       applyBackground(url); // Apply background locally
     });
 
-    backgroundOptionsContainer.appendChild(option);
+    container.appendChild(option);
   });
 }
 
@@ -394,5 +405,6 @@ window.addEventListener("load", () => {
   }
 
   adjustHeightForKeyboard();
-  populateBackgroundOptions(); // Create the background options
+  // Populate background options for desktop sidebar
+  populateBackgroundOptions(backgroundOptionsContainer);
 });
