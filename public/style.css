@@ -316,7 +316,7 @@ button:hover {
 }
 
 body.dark-mode #typing-indicator {
-  color: #1f2937;
+  color: #9ca3af;
 }
 
 .background-settings {
@@ -504,5 +504,8 @@ input[type="number"] {
   }
   #input-area {
     padding: 6px 4px env(safe-area-inset-bottom, 10px) 4px;
+  }
+  .background-option-default:hover {
+    background: none;
   }
 }
