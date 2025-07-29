@@ -26,6 +26,7 @@
         --primary-accent: #4f46e5;
         --primary-accent-hover: #4338ca;
         --shadow-color: rgba(0, 0, 0, 0.05);
+        --error-color: #ef4444;
       }
 
       /* Dark Mode Styles */
@@ -68,6 +69,8 @@
         overflow-y: auto;
         box-sizing: border-box;
         transition: background-color 0.3s, border-color 0.3s;
+        display: flex;
+        flex-direction: column;
       }
       #chat {
         flex: 1;
@@ -89,11 +92,16 @@
         border-radius: 8px;
         box-shadow: 0 1px 3px var(--shadow-color);
         margin-bottom: 8px;
-        transition: background-color 0.3s, border-color 0.3s;
+        transition: background-color 0.3s, border-color 0.3s,
+          background-image 0.5s;
+        /* ✨ NEW: Styles for background image */
+        background-size: cover;
+        background-position: center;
       }
       .msg {
         display: flex;
         margin-bottom: 10px;
+        position: relative;
       }
       .msg.me {
         justify-content: flex-end;
@@ -107,11 +115,14 @@
         max-width: 70%;
         word-break: break-word;
         box-shadow: 0 1px 4px rgba(79, 70, 229, 0.06);
+        position: relative;
       }
       .msg.me .bubble {
         background: var(--primary-accent);
         color: #fff;
         border-bottom-right-radius: 6px;
+        /* ✨ NEW: Space for read receipt */
+        padding-right: 30px;
       }
       .msg.other .bubble {
         background: var(--other-bubble-bg);
@@ -119,6 +130,19 @@
         border-bottom-left-radius: 6px;
         transition: background-color 0.3s, color 0.3s;
       }
+      /* ✨ NEW: Read receipt styles */
+      .read-receipt {
+        position: absolute;
+        bottom: 5px;
+        right: 10px;
+        font-size: 14px;
+        font-weight: bold;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .read-receipt.read {
+        color: #86efac; /* A light green for 'read' */
+      }
+      /* --- */
       .msg span {
         font-weight: 600;
       }
@@ -213,8 +237,8 @@
         font-size: 16px;
       }
 
-      /* --- ✨ NEW FEATURE: TYPING INDICATOR STYLE --- */
-      #typing-indicator {
+      #typing-indicator,
+      #error-message {
         height: 20px;
         padding: 0 12px;
         font-style: italic;
@@ -222,10 +246,40 @@
         transition: all 0.3s ease;
         opacity: 0;
       }
+      /* ✨ NEW: Error message style */
+      #error-message {
+        color: var(--error-color);
+        font-weight: 600;
+      }
       body.dark-mode #typing-indicator {
         color: #9ca3af;
       }
-      /* --- END OF NEW FEATURE --- */
+
+      /* ✨ NEW: Background settings styles */
+      .background-settings {
+        margin-top: auto;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color);
+      }
+      .background-settings h4 {
+        margin: 0 0 8px 0;
+      }
+      .background-settings input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        margin-bottom: 8px;
+        background: var(--input-bg);
+        color: var(--text-color);
+      }
+      .background-settings button {
+        width: 100%;
+        padding: 8px;
+        font-size: 14px;
+      }
+      /* --- */
 
       /* Modal Styles */
       .modal {
@@ -356,6 +410,7 @@
     </style>
   </head>
   <body>
+    <!-- Modals -->
     <div id="userModal" class="modal">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -400,6 +455,7 @@
       </div>
     </div>
 
+    <!-- Main UI -->
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
@@ -409,12 +465,24 @@
     </div>
     <div class="container">
       <div id="sidebar">
-        <h3 style="margin-bottom: 12px">👥 Users</h3>
-        <div id="userList"></div>
+        <div id="userListContainer" style="flex: 1; overflow-y: auto">
+          <h3 style="margin-bottom: 12px">👥 Users</h3>
+          <div id="userList"></div>
+        </div>
+        <!-- ✨ NEW: Background Settings -->
+        <div class="background-settings">
+          <h4>🎨 Room Background</h4>
+          <input type="text" id="backgroundInput" placeholder="Image URL..." />
+          <button id="setBackgroundBtn">Set Background</button>
+        </div>
+        <!-- --- -->
       </div>
       <div id="chat">
         <div id="messages"></div>
         <div id="typing-indicator"></div>
+        <!-- ✨ NEW: Error Message Display -->
+        <div id="error-message"></div>
+        <!-- --- -->
         <form id="form" autocomplete="off">
           <input
             id="input"

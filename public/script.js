@@ -7,10 +7,12 @@ const userList = document.getElementById("userList");
 const roomTitle = document.getElementById("roomTitle");
 const showUsersBtn = document.getElementById("showUsersBtn");
 const themeToggleBtn = document.getElementById("theme-toggle");
-
-// --- ✨ NEW FEATURE: TYPING INDICATOR ELEMENT ---
 const typingIndicator = document.getElementById("typing-indicator");
-// --- END OF NEW FEATURE ---
+// --- ✨ NEW: Element selectors for new features ---
+const errorMessage = document.getElementById("error-message");
+const backgroundInput = document.getElementById("backgroundInput");
+const setBackgroundBtn = document.getElementById("setBackgroundBtn");
+// ---
 
 // Modal elements
 const userModal = document.getElementById("userModal");
@@ -28,20 +30,22 @@ let unreadPrivate = {};
 let currentRoom = "public";
 let myId = null;
 
-// --- ✨ NEW FEATURE: TYPING INDICATOR LOGIC ---
+// --- TYPING INDICATOR LOGIC ---
 let typingTimer;
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 1500; // 1.5 seconds
 
 input.addEventListener("input", () => {
-  if (!isTyping) {
+  if (input.value.length > 0 && !isTyping) {
     isTyping = true;
     socket.emit("typing", { room: currentRoom });
   }
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => {
-    isTyping = false;
-    socket.emit("stop typing", { room: currentRoom });
+    if (input.value.length === 0) {
+      isTyping = false;
+      socket.emit("stop typing", { room: currentRoom });
+    }
   }, TYPING_TIMER_LENGTH);
 });
 
@@ -58,8 +62,6 @@ socket.on("stop typing", ({ room }) => {
     typingIndicator.style.opacity = "0";
   }
 });
-
-// --- END OF NEW FEATURE ---
 
 // --- THEME/DARK MODE LOGIC ---
 function applyTheme(theme) {
@@ -121,11 +123,9 @@ form.addEventListener("submit", (e) => {
   e.preventDefault();
   if (input.value) {
     socket.emit("chat message", { room: currentRoom, text: input.value });
-    // --- ✨ NEW FEATURE: STOP TYPING ON SEND ---
     clearTimeout(typingTimer);
     isTyping = false;
     socket.emit("stop typing", { room: currentRoom });
-    // --- END OF NEW FEATURE ---
     input.value = "";
     setTimeout(() => input.focus(), 10);
   }
@@ -147,34 +147,54 @@ function getNameColor(gender) {
 function addMessage(msg) {
   const item = document.createElement("div");
   item.classList.add("msg");
-  if (msg.id && msg.id === myId) {
-    item.classList.add("me");
-  } else {
-    item.classList.add("other");
-  }
+  // ✨ NEW: Set message ID attribute for read receipt tracking
+  item.setAttribute("data-message-id", msg.messageId);
+
+  const isMe = msg.id && msg.id === myId;
+  item.classList.add(isMe ? "me" : "other");
+
+  // ✨ NEW: Read receipt logic for private chats
+  const isPrivate = currentRoom !== "public";
+  const readReceiptHTML =
+    isMe && isPrivate
+      ? `<span class="read-receipt">${
+          msg.status === "read" ? "✓✓" : "✓"
+        }</span>`
+      : "";
+
   item.innerHTML = `
     <div class="bubble">
       <span style="color:${getNameColor(msg.gender)};font-weight:600;">
         ${msg.name} ${getGenderSymbol(msg.gender)}${
     msg.age ? " · " + msg.age : ""
   }:</span> ${msg.text}
+      ${readReceiptHTML}
     </div>
   `;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
+
+  // ✨ NEW: If this is an incoming message in an active private chat, notify server it has been read
+  if (!isMe && isPrivate) {
+    socket.emit("message read", {
+      room: currentRoom,
+      messageId: msg.messageId,
+    });
+  }
 }
 
 socket.on("chat message", (msg) => {
-  // --- ✨ NEW FEATURE: HIDE TYPING INDICATOR ON MESSAGE RECEIPT ---
+  // When a new message arrives, hide the typing indicator
   if (msg.room === currentRoom) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
   }
-  // --- END OF NEW FEATURE ---
+  // Handle unread notifications for private messages
   if (msg.room !== "public" && currentRoom !== msg.room && msg.to === myId) {
     unreadPrivate[msg.id] = true;
     updateUserList();
   }
+  // Add message to the UI if it's for the current room
   if (msg.room === currentRoom) {
     addMessage(msg);
     if (msg.room !== "public") {
@@ -195,16 +215,7 @@ function updateUserList() {
   const publicBtn = document.createElement("div");
   publicBtn.className = "user";
   publicBtn.textContent = "🌐 Public Room";
-  publicBtn.onclick = () => {
-    currentRoom = "public";
-    roomTitle.textContent = "🌐 Public Chat";
-    messages.innerHTML = "";
-    // --- ✨ NEW FEATURE: CLEAR TYPING INDICATOR ON ROOM CHANGE ---
-    typingIndicator.textContent = "";
-    typingIndicator.style.opacity = "0";
-    // --- END OF NEW FEATURE ---
-    socket.emit("join room", currentRoom);
-  };
+  publicBtn.onclick = () => switchRoom("public", "🌐 Public Chat");
   userList.appendChild(publicBtn);
 
   latestUsers.forEach((user) => {
@@ -218,19 +229,26 @@ function updateUserList() {
       }</span>` +
       (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
     div.onclick = () => {
-      currentRoom = [myId, user.id].sort().join("-");
-      roomTitle.textContent = `🔒 Chat with ${user.name}`;
-      messages.innerHTML = "";
-      // --- ✨ NEW FEATURE: CLEAR TYPING INDICATOR ON ROOM CHANGE ---
-      typingIndicator.textContent = "";
-      typingIndicator.style.opacity = "0";
-      // --- END OF NEW FEATURE ---
-      socket.emit("join room", currentRoom);
-      unreadPrivate[user.id] = false;
+      const privateRoomName = [myId, user.id].sort().join("-");
+      switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
+      unreadPrivate[user.id] = false; // Mark as read on click
       updateUserList();
     };
     userList.appendChild(div);
   });
+}
+
+// ✨ NEW: Central function to handle room switching
+function switchRoom(roomName, title) {
+  if (currentRoom === roomName) return;
+  currentRoom = roomName;
+  roomTitle.textContent = title;
+  messages.innerHTML = "";
+  typingIndicator.textContent = "";
+  typingIndicator.style.opacity = "0";
+  // Reset background, a new one will be loaded if it exists for the room
+  messages.style.backgroundImage = "none";
+  socket.emit("join room", currentRoom);
 }
 
 socket.on("user list", (users) => {
@@ -247,14 +265,7 @@ showUsersBtn.onclick = () => {
       "padding:10px;border-radius:6px;margin-bottom:8px;cursor:pointer;text-align:center;";
     publicBtn.textContent = "🌐 Public Room";
     publicBtn.onclick = () => {
-      currentRoom = "public";
-      roomTitle.textContent = "🌐 Public Chat";
-      messages.innerHTML = "";
-      // --- ✨ NEW FEATURE: CLEAR TYPING INDICATOR ON ROOM CHANGE ---
-      typingIndicator.textContent = "";
-      typingIndicator.style.opacity = "0";
-      // --- END OF NEW FEATURE ---
-      socket.emit("join room", currentRoom);
+      switchRoom("public", "🌐 Public Chat");
       allUsersModal.style.display = "none";
     };
     allUsersList.appendChild(publicBtn);
@@ -276,14 +287,8 @@ showUsersBtn.onclick = () => {
         }</span>` +
         (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
       div.onclick = () => {
-        currentRoom = [myId, user.id].sort().join("-");
-        roomTitle.textContent = `🔒 Chat with ${user.name}`;
-        messages.innerHTML = "";
-        // --- ✨ NEW FEATURE: CLEAR TYPING INDICATOR ON ROOM CHANGE ---
-        typingIndicator.textContent = "";
-        typingIndicator.style.opacity = "0";
-        // --- END OF NEW FEATURE ---
-        socket.emit("join room", currentRoom);
+        const privateRoomName = [myId, user.id].sort().join("-");
+        switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
         unreadPrivate[user.id] = false;
         updateUserList();
         allUsersModal.style.display = "none";
@@ -300,6 +305,56 @@ allUsersModal.addEventListener("click", (e) => {
   }
 });
 
+// --- ✨ NEW: Event Listeners for new features ---
+
+// Listen for rate limit warnings from server
+socket.on("rate limit", (msg) => {
+  errorMessage.textContent = msg;
+  errorMessage.style.opacity = "1";
+  setTimeout(() => {
+    errorMessage.textContent = "";
+    errorMessage.style.opacity = "0";
+  }, 3000);
+});
+
+// Listen for read receipt updates from server
+socket.on("message was read", ({ room, messageId }) => {
+  if (room === currentRoom) {
+    const messageEl = document.querySelector(
+      `.msg[data-message-id="${messageId}"]`
+    );
+    if (messageEl) {
+      const receiptEl = messageEl.querySelector(".read-receipt");
+      if (receiptEl) {
+        receiptEl.textContent = "✓✓"; // Update to double check
+        receiptEl.classList.add("read"); // Add class for styling
+      }
+    }
+  }
+});
+
+// Handle setting the background image
+setBackgroundBtn.addEventListener("click", () => {
+  const url = backgroundInput.value.trim();
+  if (url) {
+    // Basic URL validation
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      socket.emit("set background", { room: currentRoom, backgroundUrl: url });
+      backgroundInput.value = "";
+    } else {
+      alert("Please enter a valid URL (starting with http:// or https://)");
+    }
+  }
+});
+
+// Listen for background updates from the server
+socket.on("background updated", ({ room, backgroundUrl }) => {
+  if (room === currentRoom) {
+    messages.style.backgroundImage = `url(${backgroundUrl})`;
+  }
+});
+// ---
+
 // --- MOBILE KEYBOARD & INITIALIZATION ---
 function adjustHeightForKeyboard() {
   if (window.innerWidth <= 768) {
@@ -314,11 +369,8 @@ function adjustHeightForKeyboard() {
 window.addEventListener("resize", adjustHeightForKeyboard);
 
 window.addEventListener("load", () => {
-  // Apply saved theme from localStorage
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
-
-  // Adjust for mobile keyboard
   adjustHeightForKeyboard();
   input.focus();
 });
