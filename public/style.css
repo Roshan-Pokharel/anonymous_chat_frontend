@@ -356,6 +356,10 @@ body.dark-mode #typing-indicator {
   transform: scale(1.05);
 }
 
+.background-option-default:hover {
+  background: var(--user-hover-bg);
+}
+
 .background-option-default {
   grid-column: 1 / -1; /* Make button span full width */
   background: var(--user-bg);
@@ -493,7 +497,7 @@ input[type="number"] {
     min-width: 60px;
   }
   .background-option-default:hover {
-    background: var(--user-hover-bg);
+    background: none;
   }
 }
 
