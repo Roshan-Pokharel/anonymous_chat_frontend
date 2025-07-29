@@ -30,7 +30,6 @@ let currentRoom = "public";
 let myId = null;
 
 // --- PREDEFINED BACKGROUNDS (Client-side) ---
-// This array must match the one on the server for IDs to work correctly.
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1575&auto=format&fit=crop",
@@ -249,11 +248,6 @@ function switchRoom(roomName, title) {
   messages.innerHTML = "";
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
-
-  // Reset background and remove the helper class when switching rooms
-  messages.style.backgroundImage = "none";
-  messages.classList.remove("has-background");
-
   socket.emit("join room", currentRoom);
 }
 
@@ -335,31 +329,48 @@ socket.on("message was read", ({ room, messageId }) => {
   }
 });
 
-// --- Background Image Logic ---
+// --- Background Image Logic (Client-Side) ---
+
+// Applies a background image to the chat window
+function applyBackground(backgroundUrl) {
+  if (backgroundUrl) {
+    messages.style.backgroundImage = `url(${backgroundUrl})`;
+    messages.classList.add("has-background");
+    localStorage.setItem("chatBackground", backgroundUrl);
+  } else {
+    // This is for clearing the background
+    messages.style.backgroundImage = "none";
+    messages.classList.remove("has-background");
+    localStorage.removeItem("chatBackground");
+  }
+}
+
 // This function creates the clickable background thumbnails in the sidebar.
 function populateBackgroundOptions() {
-  predefinedBackgrounds.forEach((url, index) => {
+  // Add a "Default" button first
+  const defaultOption = document.createElement("button");
+  defaultOption.className = "background-option-default";
+  defaultOption.textContent = "Default";
+  defaultOption.title = "Reset to default background";
+  defaultOption.addEventListener("click", () => {
+    applyBackground(null); // Pass null to clear the background
+  });
+  backgroundOptionsContainer.appendChild(defaultOption);
+
+  // Add the predefined image thumbnails
+  predefinedBackgrounds.forEach((url) => {
     const option = document.createElement("div");
     option.className = "background-option";
     option.style.backgroundImage = `url(${url})`;
-    option.title = `Set background ${index + 1}`; // Helpful for accessibility
+    option.title = `Set background`; // Helpful for accessibility
 
-    // When a thumbnail is clicked, emit the event to the server.
     option.addEventListener("click", () => {
-      socket.emit("set background", { room: currentRoom, backgroundId: index });
+      applyBackground(url); // Apply background locally
     });
 
     backgroundOptionsContainer.appendChild(option);
   });
 }
-
-// Listen for background updates from the server
-socket.on("background updated", ({ room, backgroundUrl }) => {
-  if (room === currentRoom) {
-    messages.style.backgroundImage = `url(${backgroundUrl})`;
-    messages.classList.add("has-background");
-  }
-});
 
 // --- Mobile Keyboard & Initialization ---
 // Adjusts viewport height for mobile browsers to avoid issues with on-screen keyboards.
@@ -376,6 +387,12 @@ window.addEventListener("resize", adjustHeightForKeyboard);
 window.addEventListener("load", () => {
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
+
+  const savedBackground = localStorage.getItem("chatBackground");
+  if (savedBackground) {
+    applyBackground(savedBackground);
+  }
+
   adjustHeightForKeyboard();
   populateBackgroundOptions(); // Create the background options
 });

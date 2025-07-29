@@ -349,6 +349,19 @@ body.dark-mode #typing-indicator {
   transform: scale(1.05);
 }
 
+.background-option-default {
+  grid-column: 1 / -1; /* Make button span full width */
+  background: var(--user-bg);
+  color: var(--text-color);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 8px;
+}
+
+.background-option-default:hover {
+  background: var(--user-hover-bg);
+}
+
 /* Modal styles */
 .modal {
   position: fixed;
@@ -433,6 +446,12 @@ input[type="number"] {
   #sidebar {
     display: none;
   }
+
+  /* HIDE THE BACKGROUND SETTINGS ON MOBILE */
+  .background-settings {
+    display: none;
+  }
+
   #topBar {
     position: fixed;
     top: 0;
