@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>Anonymous Chat</title>
+    <title>Anonymous Chat & Doodle Dash</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -38,17 +38,61 @@
           required
         />
         <div class="gender-group">
-          <label>
-            <input type="radio" name="gender" value="male" checked />
-            <span style="color: #3b82f6; font-weight: 600">♂ Male</span>
-          </label>
-          <label>
-            <input type="radio" name="gender" value="female" />
-            <span style="color: #e75480; font-weight: 600">♀ Female</span>
-          </label>
+          <label
+            ><input type="radio" name="gender" value="male" checked />
+            <span style="color: #3b82f6; font-weight: 600">♂ Male</span></label
+          >
+          <label
+            ><input type="radio" name="gender" value="female" />
+            <span style="color: #e75480; font-weight: 600"
+              >♀ Female</span
+            ></label
+          >
         </div>
-        <button type="submit">Start Chatting 🚀</button>
+        <button type="submit">Enter Chat 🚀</button>
       </form>
+    </div>
+
+    <!-- Main Application UI -->
+    <div id="topBar" style="display: none">
+      <span id="viewTitle">🌐 Public Chat</span>
+      <div class="top-bar-buttons">
+        <button id="game-toggle-btn" title="Play Doodle Dash">
+          🎨 Play Game
+        </button>
+        <button id="theme-toggle" title="Toggle dark mode">🌙</button>
+        <button id="showUsersBtn">👥 Users</button>
+      </div>
+    </div>
+
+    <!-- CHAT APPLICATION CONTAINER -->
+    <div id="chat-app-container" class="main-container" style="display: none">
+      <div id="sidebar">
+        <div id="userListContainer" style="flex: 1; overflow-y: auto">
+          <h3 style="margin-bottom: 12px">👥 Online Users</h3>
+          <div id="userList"></div>
+        </div>
+        <div class="background-settings">
+          <h4>🎨 Room Background</h4>
+          <div id="backgroundOptions" class="background-options-grid"></div>
+        </div>
+      </div>
+      <div id="chat">
+        <div id="messages"></div>
+        <div id="input-area">
+          <div id="typing-indicator"></div>
+          <div id="error-message"></div>
+          <form id="form" autocomplete="off">
+            <input
+              id="input"
+              type="text"
+              placeholder="Type your message..."
+              maxlength="500"
+            />
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </div>
     </div>
 
     <!-- Modal for displaying all users and settings on mobile -->
@@ -58,17 +102,15 @@
           Online Users
         </h3>
         <div id="allUsersList"></div>
-
-        <!-- Mobile Background Settings -->
         <div class="background-settings-mobile">
           <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
             🎨 Chat Background
           </h4>
-          <div id="backgroundOptionsMobile" class="background-options-grid">
-            <!-- Mobile background options will be dynamically inserted here -->
-          </div>
+          <div
+            id="backgroundOptionsMobile"
+            class="background-options-grid"
+          ></div>
         </div>
-
         <button
           onclick="document.getElementById('allUsersModal').style.display='none';"
           style="margin-top: 16px"
@@ -78,55 +120,68 @@
       </div>
     </div>
 
-    <!-- Main Application UI -->
-    <div id="topBar">
-      <span id="roomTitle">🌐 Public Chat</span>
-      <div class="top-bar-buttons">
-        <button id="theme-toggle" title="Toggle dark mode">🌙</button>
-        <button id="showUsersBtn">👥 Users</button>
-      </div>
-    </div>
-
-    <div class="container">
-      <!-- Sidebar for user list and settings (Desktop) -->
-      <div id="sidebar">
-        <div id="userListContainer" style="flex: 1; overflow-y: auto">
-          <h3 style="margin-bottom: 12px">👥 Online Users</h3>
-          <div id="userList"></div>
+    <!-- GAME APPLICATION CONTAINER -->
+    <div id="game-app-container" class="main-container" style="display: none">
+      <!-- Game Lobby View -->
+      <div id="lobby-view">
+        <div class="lobby-actions">
+          <input
+            type="text"
+            id="game-name-input"
+            placeholder="Enter New Game Name"
+            maxlength="25"
+          />
+          <button id="create-game-btn">Create Game</button>
         </div>
-        <div class="background-settings">
-          <h4>🎨 Room Background</h4>
-          <div id="backgroundOptions" class="background-options-grid">
-            <!-- Desktop background options will be dynamically inserted here -->
+        <h3>Join an Existing Game</h3>
+        <div id="game-list"></div>
+      </div>
+
+      <!-- Game Room View -->
+      <div id="game-room-view" style="display: none">
+        <div id="game-sidebar">
+          <h3 id="game-room-name">Game Room</h3>
+          <div id="scoreboard">
+            <h4>🏆 Scoreboard</h4>
+            <ul id="player-scores"></ul>
+          </div>
+          <div id="game-controls">
+            <button id="leave-game-btn">Leave Game</button>
+            <button id="start-game-btn" style="display: none">
+              Start Game
+            </button>
+          </div>
+        </div>
+        <div id="game-main">
+          <div id="canvas-container">
+            <div id="game-info-bar">
+              <span id="timer">Time: 60s</span>
+              <span id="word-display">_ _ _ _ _ _</span>
+              <span id="round-info">Round 1/10</span>
+            </div>
+            <canvas id="drawing-canvas"></canvas>
+            <div id="drawing-tools" style="display: none">
+              <input type="color" id="color-picker" value="#000000" />
+              <input type="range" id="brush-size" min="2" max="50" value="5" />
+              <button id="clear-canvas-btn">Clear</button>
+            </div>
+          </div>
+          <div id="chat-area">
+            <div id="game-messages"></div>
+            <form id="game-chat-form">
+              <input
+                id="game-chat-input"
+                autocomplete="off"
+                placeholder="Type your guess here..."
+              />
+              <button type="submit">Send</button>
+            </form>
           </div>
         </div>
       </div>
-
-      <!-- Main chat area -->
-      <div id="chat">
-        <div id="messages">
-          <!-- Chat messages will appear here -->
-        </div>
-        <div id="input-area">
-          <div id="typing-indicator"></div>
-          <div id="error-message"></div>
-          <form id="form" autocomplete="off">
-            <input
-              id="input"
-              type="text"
-              placeholder="Type your message..."
-              autocomplete="off"
-              maxlength="500"
-            />
-            <button type="submit">Send</button>
-          </form>
-        </div>
-      </div>
     </div>
 
-    <!-- Include Socket.IO client library -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <!-- Include your custom client-side script -->
     <script src="script.js"></script>
   </body>
 </html>
