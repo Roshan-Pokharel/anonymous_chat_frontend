@@ -16,7 +16,6 @@
     />
   </head>
   <body>
-    <!-- Modal for initial user profile setup -->
     <div id="userModal" class="modal">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -51,35 +50,42 @@
       </form>
     </div>
 
-    <!-- Modal for creating a game room -->
     <div id="createGameModal" class="modal" style="display: none">
+      <form id="createGameForm" class="modal-content">
+        <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
+          ✏️ Create a Game Room
+        </h2>
+        <input
+          type="text"
+          id="roomNameInput"
+          placeholder="Enter room name"
+          required
+          maxlength="30"
+        />
+        <div class="modal-buttons">
+          <button type="button" id="cancelCreateGameBtn" class="btn-secondary">
+            Cancel
+          </button>
+          <button type="submit">Create Room</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="scoreboardModal" class="modal" style="display: none">
       <div class="modal-content">
-        <form id="createGameForm">
-          <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
-            ✏️ Create a Game Room
-          </h2>
-          <input
-            type="text"
-            id="roomNameInput"
-            placeholder="Enter room name"
-            required
-            maxlength="30"
-          />
-          <div class="modal-buttons">
-            <button
-              type="button"
-              id="cancelCreateGameBtn"
-              class="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button type="submit">Create Room</button>
-          </div>
-        </form>
+        <h2
+          id="scoreboardTitle"
+          style="margin-bottom: 18px; color: #4f46e5; text-align: center"
+        >
+          🏆 Game Over!
+        </h2>
+        <div id="finalScores"></div>
+        <button type="button" id="closeScoreboardBtn" style="margin-top: 16px">
+          Close
+        </button>
       </div>
     </div>
 
-    <!-- Main modal for mobile view with tabs -->
     <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content" style="max-height: 80vh; overflow-y: auto">
         <div id="mobileModalNav">
@@ -90,7 +96,6 @@
           </button>
         </div>
 
-        <!-- Users Tab -->
         <div id="usersTab" class="modal-tab-content active">
           <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
             Online Users
@@ -98,7 +103,6 @@
           <div id="allUsersList"></div>
         </div>
 
-        <!-- Game Tab -->
         <div id="gameTab" class="modal-tab-content">
           <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
             Doodle Dash
@@ -107,10 +111,22 @@
             <button id="createGameRoomBtnMobile">Create Game Room</button>
             <h4 class="room-list-header">Available Rooms</h4>
             <div id="gameRoomListMobile"></div>
+            <button
+              id="startGameBtnMobile"
+              style="display: none; margin-top: 12px"
+            >
+              Start Game
+            </button>
+            <button
+              id="stopGameBtnMobile"
+              style="display: none; margin-top: 8px"
+              class="btn-secondary"
+            >
+              Stop Game
+            </button>
           </div>
         </div>
 
-        <!-- Appearance Tab -->
         <div id="appearanceTab" class="modal-tab-content">
           <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
             🎨 Chat Background
@@ -130,7 +146,6 @@
       </div>
     </div>
 
-    <!-- Top navigation bar -->
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
@@ -139,16 +154,13 @@
       </div>
     </div>
 
-    <!-- Main container for sidebar and chat -->
     <div class="container">
       <div id="sidebar">
-        <!-- User list for desktop -->
         <div id="userListContainer" style="flex: 1; overflow-y: auto">
           <h3 style="margin-bottom: 12px">👥 Online Users</h3>
           <div id="userList"></div>
         </div>
 
-        <!-- Game controls for desktop -->
         <div class="game-controls-desktop">
           <h4>✏️ Doodle Dash</h4>
           <button id="createGameRoomBtnDesktop">Create Game Room</button>
@@ -157,18 +169,22 @@
             <p class="no-rooms-msg">No active game rooms.</p>
           </div>
           <button id="startGameBtn" style="display: none">Start Game</button>
+          <button
+            id="stopGameBtn"
+            class="btn-secondary"
+            style="display: none; margin-top: 8px"
+          >
+            Stop Game
+          </button>
         </div>
 
-        <!-- Background settings for desktop -->
         <div class="background-settings">
           <h4>🎨 Room Background</h4>
           <div id="backgroundOptions" class="background-options-grid"></div>
         </div>
       </div>
 
-      <!-- Main chat area -->
       <div id="chat">
-        <!-- Game container, shown when in a game room -->
         <div id="gameContainer" style="display: none">
           <div id="gameInfo"></div>
           <canvas id="gameCanvas"></canvas>
@@ -179,7 +195,6 @@
 
         <div id="messages"></div>
 
-        <!-- Message input area -->
         <div id="input-area">
           <div id="typing-indicator"></div>
           <div id="error-message"></div>

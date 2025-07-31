@@ -20,6 +20,14 @@ const nicknameInput = document.getElementById("nicknameInput");
 const ageInput = document.getElementById("ageInput");
 const allUsersModal = document.getElementById("allUsersModal");
 const allUsersList = document.getElementById("allUsersList");
+const createGameModal = document.getElementById("createGameModal");
+const createGameForm = document.getElementById("createGameForm");
+const roomNameInput = document.getElementById("roomNameInput");
+const cancelCreateGameBtn = document.getElementById("cancelCreateGameBtn");
+const scoreboardModal = document.getElementById("scoreboardModal");
+const scoreboardTitle = document.getElementById("scoreboardTitle");
+const finalScores = document.getElementById("finalScores");
+const closeScoreboardBtn = document.getElementById("closeScoreboardBtn");
 
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
@@ -43,6 +51,9 @@ const createGameRoomBtnMobile = document.getElementById(
 const gameRoomListDesktop = document.getElementById("gameRoomListDesktop");
 const gameRoomListMobile = document.getElementById("gameRoomListMobile");
 const startGameBtn = document.getElementById("startGameBtn");
+const stopGameBtn = document.getElementById("stopGameBtn");
+const startGameBtnMobile = document.getElementById("startGameBtnMobile");
+const stopGameBtnMobile = document.getElementById("stopGameBtnMobile");
 
 // --- Application & Game State ---
 let latestUsers = [];
@@ -58,6 +69,7 @@ const ctx = gameCanvas.getContext("2d");
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
+let currentGameState = {};
 
 // --- PREDEFINED BACKGROUNDS (Client-side) ---
 const predefinedBackgrounds = [
@@ -117,6 +129,8 @@ form.addEventListener("submit", (e) => {
 showUsersBtn.onclick = () => {
   populateBackgroundOptions(backgroundOptionsMobileContainer);
   allUsersModal.style.display = "flex";
+  // Sync mobile game button states
+  updateGameButtonVisibility(currentGameState);
 };
 
 allUsersModal.addEventListener("click", (e) => {
@@ -124,6 +138,12 @@ allUsersModal.addEventListener("click", (e) => {
     allUsersModal.style.display = "none";
   }
 });
+scoreboardModal.addEventListener("click", (e) => {
+  if (e.target === scoreboardModal) {
+    scoreboardModal.style.display = "none";
+  }
+});
+closeScoreboardBtn.onclick = () => (scoreboardModal.style.display = "none");
 
 mobileModalNav.addEventListener("click", (e) => {
   if (e.target.tagName !== "BUTTON") return;
@@ -178,7 +198,6 @@ socket.on("message was read", ({ room, messageId }) => {
 
 socket.on("chat message", (msg) => {
   const isGameRoom = currentRoom.startsWith("game-");
-  // Only show message if it's for the current room OR it's a private message notification
   if (msg.room === currentRoom) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
@@ -226,7 +245,8 @@ function addMessage(msg, type = "") {
   }
 
   const isMe = msg.id && msg.id === myId;
-  const isSystem = type === "system" || msg.name === "System";
+  const isSystem =
+    type === "system" || msg.name === "System" || msg.isGameEvent;
   if (isSystem) item.classList.add("system");
   else item.classList.add(isMe ? "me" : "other");
 
@@ -243,7 +263,12 @@ function addMessage(msg, type = "") {
         msg.name
       }${getGenderSymbol(msg.gender)}${msg.age ? " · " + msg.age : ""}</span>`;
 
-  item.innerHTML = `<div class="bubble">${nameHTML}${msg.text}${readReceiptHTML}</div>`;
+  // Use a more structured HTML for the message content
+  const messageContent = isSystem
+    ? `<strong>${msg.text}</strong>`
+    : `${nameHTML}${msg.text}${readReceiptHTML}`;
+
+  item.innerHTML = `<div class="bubble">${messageContent}</div>`;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
 
@@ -302,9 +327,8 @@ function updateUserList() {
 function switchRoom(roomName, title) {
   if (currentRoom === roomName) return;
 
-  // Leave the old room if it's a game room
   if (currentRoom.startsWith("game-")) {
-    endGame(); // Clean up game UI
+    endGame(); // Clean up game UI when leaving a game room
   }
 
   currentRoom = roomName;
@@ -313,20 +337,19 @@ function switchRoom(roomName, title) {
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
 
-  // Only emit join room for non-game rooms, as game room joining is handled separately
-  if (!roomName.startsWith("game-")) {
+  // Joining is handled differently for game vs chat rooms
+  if (roomName.startsWith("game-")) {
+    gameContainer.style.display = "flex";
+  } else {
     socket.emit("join room", currentRoom);
     endGame();
-    startGameBtn.style.display = "none";
-  } else {
-    // We are in a game room, show the game container
-    gameContainer.style.display = "flex";
   }
+  updateGameButtonVisibility({}); // Reset buttons on room switch
 }
 
 // --- Helper & UI Functions ---
 function getGenderSymbol(gender) {
-  return gender === "female" ? "♀" : "♂";
+  return gender === "female" ? " ♀" : " ♂";
 }
 function getGenderColor(gender) {
   return gender === "female" ? "#e75480" : "#3b82f6";
@@ -387,10 +410,7 @@ function populateBackgroundOptions(container) {
 // --- GAME LOGIC ---
 
 // Game Socket Handlers
-socket.on("game:roomsList", (rooms) => {
-  updateGameRoomList(rooms);
-});
-
+socket.on("game:roomsList", updateGameRoomList);
 socket.on("game:joined", (roomData) => {
   switchRoom(roomData.id, `🎮 ${roomData.name}`);
   if (allUsersModal.style.display === "flex") {
@@ -399,26 +419,26 @@ socket.on("game:joined", (roomData) => {
 });
 
 socket.on("game:state", (state) => {
+  currentGameState = state;
   gameContainer.style.display = "flex";
 
-  // Show/hide start button for creator
-  if (state.creatorId === myId && !state.isRoundActive) {
-    startGameBtn.style.display = "block";
-    startGameBtn.disabled = false;
-    gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
-  } else {
-    startGameBtn.style.display = "none";
-  }
+  updateGameButtonVisibility(state);
 
   if (state.isRoundActive) {
-    if (state.drawer.id === myId) {
-      gameInfo.textContent = "Your turn to draw!";
-      drawingTools.style.display = "flex";
-      gameCanvas.style.cursor = "crosshair";
+    const isDrawer = state.drawer.id === myId;
+    gameInfo.textContent = isDrawer
+      ? "Your turn to draw!"
+      : `${state.drawer.name} is drawing...`;
+    drawingTools.style.display = isDrawer ? "flex" : "none";
+    gameCanvas.style.cursor = isDrawer ? "crosshair" : "not-allowed";
+  } else {
+    if (state.creatorId === myId) {
+      gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
     } else {
-      gameInfo.textContent = `${state.drawer.name} is drawing...`;
-      drawingTools.style.display = "none";
-      gameCanvas.style.cursor = "not-allowed";
+      const creator = latestUsers.find((u) => u.id === state.creatorId);
+      gameInfo.textContent = `Waiting for ${
+        creator ? creator.name : "the host"
+      } to start the game.`;
     }
   }
 });
@@ -426,55 +446,110 @@ socket.on("game:state", (state) => {
 socket.on("game:word_prompt", (word) => {
   gameInfo.textContent = `Your turn! Draw the word: ${word}`;
 });
-
-socket.on("game:message", (text) => {
-  addMessage({ text }, "system");
+socket.on("game:message", (text) =>
+  addMessage({ text, isGameEvent: true }, "system")
+);
+socket.on("game:new_round", () => {
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  addMessage({ text: "A new round is starting!", isGameEvent: true }, "system");
 });
-
-socket.on("game:correct_guess", ({ guesser, word, scores }) => {
+socket.on("game:correct_guess", ({ guesser, word }) => {
   addMessage(
-    { text: `${guesser.name} guessed the word correctly! It was "${word}".` },
+    {
+      text: `✅ ${guesser.name} guessed the word correctly! It was "${word}".`,
+      isGameEvent: true,
+    },
     "system"
   );
 });
 
 socket.on("game:end", (text) => {
-  addMessage({ text }, "system");
-  endGame(false); // Don't switch rooms, just end the game UI
-  startGameBtn.style.display = "block";
-  startGameBtn.disabled = false;
+  addMessage({ text, isGameEvent: true }, "system");
+  endGame(false);
+  updateGameButtonVisibility({ ...currentGameState, isRoundActive: false });
+});
+
+socket.on("game:over", ({ winner, scores }) => {
+  addMessage(
+    { text: `🎉 ${winner.name} wins the game!`, isGameEvent: true },
+    "system"
+  );
+  showScoreboard(winner, scores);
+  endGame(true);
 });
 
 socket.on("game:draw", (data) => {
-  drawLine(data.x0, data.y0, data.x1, data.y1, false);
+  const { x0, y0, x1, y1 } = data;
+  const w = gameCanvas.clientWidth;
+  const h = gameCanvas.clientHeight;
+  drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false);
 });
-
-socket.on("game:clear_canvas", () => {
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-});
+socket.on("game:clear_canvas", () =>
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height)
+);
 
 // Game UI Event Listeners
-const handleCreateGameRoom = () => {
-  const roomName = prompt("Enter a name for your game room:", "My Doodle Room");
-  if (roomName && roomName.trim()) {
-    socket.emit("game:create", roomName.trim());
-  }
-};
+function handleCreateGameRoom() {
+  createGameModal.style.display = "flex";
+  roomNameInput.focus();
+}
 createGameRoomBtnDesktop.addEventListener("click", handleCreateGameRoom);
 createGameRoomBtnMobile.addEventListener("click", handleCreateGameRoom);
+cancelCreateGameBtn.addEventListener(
+  "click",
+  () => (createGameModal.style.display = "none")
+);
 
-startGameBtn.addEventListener("click", () => {
-  if (currentRoom.startsWith("game-")) {
-    socket.emit("game:start", currentRoom);
-    startGameBtn.disabled = true;
-    startGameBtn.style.display = "none";
+createGameForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const roomName = roomNameInput.value.trim();
+  if (roomName) {
+    socket.emit("game:create", roomName);
+    createGameModal.style.display = "none";
+    roomNameInput.value = "";
   }
 });
+
+function handleStartGame() {
+  if (currentRoom.startsWith("game-")) {
+    socket.emit("game:start", currentRoom);
+  }
+}
+startGameBtn.addEventListener("click", handleStartGame);
+startGameBtnMobile.addEventListener("click", handleStartGame);
+
+function handleStopGame() {
+  if (currentRoom.startsWith("game-")) {
+    socket.emit("game:stop", currentRoom);
+  }
+}
+stopGameBtn.addEventListener("click", handleStopGame);
+stopGameBtnMobile.addEventListener("click", handleStopGame);
 
 clearCanvasBtn.addEventListener("click", () => {
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   socket.emit("game:clear_canvas", currentRoom);
 });
+
+function updateGameButtonVisibility(state) {
+  const isGameActive = state && state.isRoundActive;
+  const isCreator = state && state.creatorId === myId;
+
+  // Desktop buttons
+  startGameBtn.style.display = isCreator && !isGameActive ? "block" : "none";
+  stopGameBtn.style.display = isCreator && isGameActive ? "block" : "none";
+
+  // Mobile buttons
+  startGameBtnMobile.style.display =
+    isCreator && !isGameActive ? "block" : "none";
+  stopGameBtnMobile.style.display =
+    isCreator && isGameActive ? "block" : "none";
+
+  if (state && state.players) {
+    startGameBtn.disabled = state.players.length < 2;
+    startGameBtnMobile.disabled = state.players.length < 2;
+  }
+}
 
 function updateGameRoomList(rooms) {
   const renderList = (container) => {
@@ -486,24 +561,47 @@ function updateGameRoomList(rooms) {
     rooms.forEach((room) => {
       const item = document.createElement("div");
       item.className = "game-room-item";
-
-      const roomInfo = document.createElement("span");
-      roomInfo.title = `${room.name} (by ${room.creatorName})`;
-      roomInfo.textContent = `${room.name} (${room.players.length}p)`;
-
-      const joinBtn = document.createElement("button");
-      joinBtn.textContent = "Join";
-      joinBtn.onclick = () => {
+      item.innerHTML = `
+        <span title="${room.name} (by ${room.creatorName})">${room.name} (${room.players.length}p)</span>
+        <button data-room-id="${room.id}">Join</button>
+      `;
+      item.querySelector("button").onclick = () =>
         socket.emit("game:join", room.id);
-      };
-
-      item.appendChild(roomInfo);
-      item.appendChild(joinBtn);
       container.appendChild(item);
     });
   };
   renderList(gameRoomListDesktop);
   renderList(gameRoomListMobile);
+}
+
+function showScoreboard(winner, scores) {
+  scoreboardTitle.innerHTML = `🏆 ${winner.name} Wins!`;
+  finalScores.innerHTML = "<h3>Final Scores:</h3>";
+
+  const scoreList = document.createElement("ul");
+  scoreList.style.listStyle = "none";
+  scoreList.style.padding = "0";
+
+  const sortedPlayerIds = Object.keys(scores).sort(
+    (a, b) => scores[b] - scores[a]
+  );
+
+  sortedPlayerIds.forEach((playerId) => {
+    const user = latestUsers.find((u) => u.id === playerId) || {
+      name: "A player",
+      gender: "male",
+    };
+    const scoreItem = document.createElement("li");
+    scoreItem.style.padding = "8px";
+    scoreItem.style.borderBottom = "1px solid var(--border-color)";
+    scoreItem.innerHTML = `<span style="color:${getGenderColor(
+      user.gender
+    )}; font-weight: 600;">${user.name}</span>: ${scores[playerId]} points`;
+    scoreList.appendChild(scoreItem);
+  });
+
+  finalScores.appendChild(scoreList);
+  scoreboardModal.style.display = "flex";
 }
 
 // Canvas Functions
@@ -527,12 +625,18 @@ function drawLine(x0, y0, x1, y1, emit) {
     : "#000000";
   ctx.stroke();
   ctx.closePath();
+
   if (!emit) return;
-  socket.emit("game:draw", { room: currentRoom, data: { x0, y0, x1, y1 } });
+  const w = gameCanvas.clientWidth;
+  const h = gameCanvas.clientHeight;
+  socket.emit("game:draw", {
+    room: currentRoom,
+    data: { x0: x0 / w, y0: y0 / h, x1: x1 / w, y1: y1 / h },
+  });
 }
 
 function handleStart(e) {
-  if (gameInfo.textContent.startsWith("Your turn")) {
+  if (currentGameState.isRoundActive && currentGameState.drawer.id === myId) {
     isDrawing = true;
     const pos = getMousePos(e);
     [lastX, lastY] = [pos.x, pos.y];
@@ -553,10 +657,7 @@ function getMousePos(e) {
   const rect = gameCanvas.getBoundingClientRect();
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return {
-    x: clientX - rect.left,
-    y: clientY - rect.top,
-  };
+  return { x: clientX - rect.left, y: clientY - rect.top };
 }
 // Mouse events
 gameCanvas.addEventListener("mousedown", handleStart);
@@ -574,5 +675,6 @@ function endGame(hideContainer = true) {
   drawingTools.style.display = "none";
   gameCanvas.style.cursor = "default";
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  startGameBtn.style.display = "none";
+  updateGameButtonVisibility({}); // Reset all game buttons
+  currentGameState = {};
 }
