@@ -579,9 +579,6 @@ function showScoreboard(winner, scores) {
   finalScores.innerHTML = "<h3>Final Scores:</h3>";
 
   const scoreList = document.createElement("ul");
-  scoreList.style.listStyle = "none";
-  scoreList.style.padding = "0";
-
   const sortedPlayerIds = Object.keys(scores).sort(
     (a, b) => scores[b] - scores[a]
   );
@@ -592,11 +589,10 @@ function showScoreboard(winner, scores) {
       gender: "male",
     };
     const scoreItem = document.createElement("li");
-    scoreItem.style.padding = "8px";
-    scoreItem.style.borderBottom = "1px solid var(--border-color)";
-    scoreItem.innerHTML = `<span style="color:${getGenderColor(
+    scoreItem.innerHTML = `<span class="score-name" style="color:${getGenderColor(
       user.gender
-    )}; font-weight: 600;">${user.name}</span>: ${scores[playerId]} points`;
+    )};">${user.name}${getGenderSymbol(user.gender)}</span>
+           <span class="score-points">${scores[playerId]} points</span>`;
     scoreList.appendChild(scoreItem);
   });
 
