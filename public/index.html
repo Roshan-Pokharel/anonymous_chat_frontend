@@ -16,6 +16,7 @@
     />
   </head>
   <body>
+    <!-- Modal for initial user profile setup -->
     <div id="userModal" class="modal">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -50,6 +51,7 @@
       </form>
     </div>
 
+    <!-- Modal for creating a game room -->
     <div id="createGameModal" class="modal" style="display: none">
       <div class="modal-content">
         <form id="createGameForm">
@@ -77,6 +79,7 @@
       </div>
     </div>
 
+    <!-- Main modal for mobile view with tabs -->
     <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content" style="max-height: 80vh; overflow-y: auto">
         <div id="mobileModalNav">
@@ -87,6 +90,7 @@
           </button>
         </div>
 
+        <!-- Users Tab -->
         <div id="usersTab" class="modal-tab-content active">
           <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
             Online Users
@@ -94,6 +98,7 @@
           <div id="allUsersList"></div>
         </div>
 
+        <!-- Game Tab -->
         <div id="gameTab" class="modal-tab-content">
           <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
             Doodle Dash
@@ -102,21 +107,10 @@
             <button id="createGameRoomBtnMobile">Create Game Room</button>
             <h4 class="room-list-header">Available Rooms</h4>
             <div id="gameRoomListMobile"></div>
-            <div class="game-actions">
-              <button id="startGameBtnMobile" style="display: none">
-                Start Game
-              </button>
-              <button
-                id="endGameBtnMobile"
-                class="btn-secondary"
-                style="display: none"
-              >
-                End Game
-              </button>
-            </div>
           </div>
         </div>
 
+        <!-- Appearance Tab -->
         <div id="appearanceTab" class="modal-tab-content">
           <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
             🎨 Chat Background
@@ -126,6 +120,7 @@
             class="background-options-grid"
           ></div>
         </div>
+
         <button
           onclick="document.getElementById('allUsersModal').style.display='none';"
           style="margin-top: 16px"
@@ -135,73 +130,74 @@
       </div>
     </div>
 
+    <!-- Top navigation bar -->
     <div id="topBar">
-      <div id="roomTitle">🌐 Public Chat</div>
+      <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
-        <button id="createGameRoomBtnDesktop">Create Game Room</button>
-        <button id="theme-toggle">🌙</button>
-        <button id="showUsersBtn">Users</button>
+        <button id="theme-toggle" title="Toggle dark mode">🌙</button>
+        <button id="showUsersBtn">☰ Menu</button>
       </div>
     </div>
 
+    <!-- Main container for sidebar and chat -->
     <div class="container">
       <div id="sidebar">
-        <h3 style="margin-bottom: 12px; color: #4f46e5">Online Users</h3>
-        <div id="userList"></div>
-
-        <div class="game-controls-desktop">
-          <h3 style="margin-bottom: 12px; color: #4f46e5">Doodle Dash</h3>
-          <button id="createGameRoomBtnDesktop">Create Game Room</button>
-          <h4 class="room-list-header">Available Rooms</h4>
-          <div id="gameRoomListDesktop"></div>
-          <div class="game-actions">
-            <button id="startGameBtnDesktop" style="display: none">
-              Start Game
-            </button>
-            <button
-              id="endGameBtnDesktop"
-              class="btn-secondary"
-              style="display: none"
-            >
-              End Game
-            </button>
-          </div>
+        <!-- User list for desktop -->
+        <div id="userListContainer" style="flex: 1; overflow-y: auto">
+          <h3 style="margin-bottom: 12px">👥 Online Users</h3>
+          <div id="userList"></div>
         </div>
 
+        <!-- Game controls for desktop -->
+        <div class="game-controls-desktop">
+          <h4>✏️ Doodle Dash</h4>
+          <button id="createGameRoomBtnDesktop">Create Game Room</button>
+          <h4 class="room-list-header">Available Rooms</h4>
+          <div id="gameRoomListDesktop">
+            <p class="no-rooms-msg">No active game rooms.</p>
+          </div>
+          <button id="startGameBtn" style="display: none">Start Game</button>
+        </div>
+
+        <!-- Background settings for desktop -->
         <div class="background-settings">
-          <h4>🎨 Chat Background</h4>
+          <h4>🎨 Room Background</h4>
           <div id="backgroundOptions" class="background-options-grid"></div>
         </div>
       </div>
 
+      <!-- Main chat area -->
       <div id="chat">
-        <div id="messages"></div>
-
+        <!-- Game container, shown when in a game room -->
         <div id="gameContainer" style="display: none">
-          <div id="gameInfo">
-            <span id="gameStatus">Waiting for game to start...</span>
-            <span id="gameWord" style="margin-left: 10px"></span>
-            <div id="gameScores" class="scores-display"></div>
-          </div>
+          <div id="gameInfo"></div>
           <canvas id="gameCanvas"></canvas>
-          <div id="drawingTools">
-            <input type="color" id="colorPicker" value="#000000" />
-            <input type="range" id="strokeSize" min="1" max="20" value="5" />
-            <button id="clearCanvasBtn" class="btn-secondary">Clear</button>
+          <div id="drawingTools" style="display: none">
+            <button id="clearCanvasBtn">Clear</button>
           </div>
         </div>
 
+        <div id="messages"></div>
+
+        <!-- Message input area -->
         <div id="input-area">
           <div id="typing-indicator"></div>
           <div id="error-message"></div>
-          <form id="form" action="">
-            <input id="input" autocomplete="off" /><button>Send</button>
+          <form id="form" autocomplete="off">
+            <input
+              id="input"
+              type="text"
+              placeholder="Type your message or guess..."
+              autocomplete="off"
+              maxlength="500"
+            />
+            <button type="submit">Send</button>
           </form>
         </div>
       </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

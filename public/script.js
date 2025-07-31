@@ -21,12 +21,6 @@ const ageInput = document.getElementById("ageInput");
 const allUsersModal = document.getElementById("allUsersModal");
 const allUsersList = document.getElementById("allUsersList");
 
-// New Game Modal Elements
-const createGameModal = document.getElementById("createGameModal");
-const createGameForm = document.getElementById("createGameForm");
-const roomNameInput = document.getElementById("roomNameInput");
-const cancelCreateGameBtn = document.getElementById("cancelCreateGameBtn");
-
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
 const modalTabs = document.querySelectorAll(".modal-tab-content");
@@ -48,18 +42,7 @@ const createGameRoomBtnMobile = document.getElementById(
 );
 const gameRoomListDesktop = document.getElementById("gameRoomListDesktop");
 const gameRoomListMobile = document.getElementById("gameRoomListMobile");
-
-const startGameBtnDesktop = document.getElementById("startGameBtnDesktop");
-const endGameBtnDesktop = document.getElementById("endGameBtnDesktop");
-const startGameBtnMobile = document.getElementById("startGameBtnMobile");
-const endGameBtnMobile = document.getElementById("endGameBtnMobile");
-
-const gameStatusSpan = document.getElementById("gameStatus");
-const gameWordSpan = document.getElementById("gameWord");
-const gameScoresDiv = document.getElementById("gameScores");
-
-const colorPicker = document.getElementById("colorPicker");
-const strokeSize = document.getElementById("strokeSize");
+const startGameBtn = document.getElementById("startGameBtn");
 
 // --- Application & Game State ---
 let latestUsers = [];
@@ -75,20 +58,6 @@ const ctx = gameCanvas.getContext("2d");
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
-let currentStrokeColor = "#000000";
-let currentStrokeSize = 5;
-
-// Game State
-let gameData = {
-  isGameActive: false,
-  isMyTurn: false,
-  word: "",
-  drawer: null,
-  scores: {},
-  roundTimeLeft: 0,
-  creatorId: null,
-};
-let roundTimerInterval;
 
 // --- PREDEFINED BACKGROUNDS (Client-side) ---
 const predefinedBackgrounds = [
@@ -106,11 +75,11 @@ window.addEventListener("load", () => {
   if (savedBackground) applyBackground(savedBackground);
   adjustHeightForKeyboard();
   populateBackgroundOptions(backgroundOptionsContainer);
-  setupCanvas(); // Initial canvas setup
+  setupCanvas();
 });
 window.addEventListener("resize", () => {
   adjustHeightForKeyboard();
-  setupCanvas(); // Re-setup canvas on resize
+  setupCanvas();
 });
 
 // --- Event Listeners ---
@@ -166,54 +135,6 @@ mobileModalNav.addEventListener("click", (e) => {
   modalTabs.forEach((tab) => {
     tab.classList.toggle("active", tab.id === `${tabName}Tab`);
   });
-});
-
-// Game Tool Listeners
-colorPicker.addEventListener("change", (e) => {
-  currentStrokeColor = e.target.value;
-  ctx.strokeStyle = currentStrokeColor;
-});
-strokeSize.addEventListener("change", (e) => {
-  currentStrokeSize = parseInt(e.target.value);
-  ctx.lineWidth = currentStrokeSize;
-});
-clearCanvasBtn.addEventListener("click", () => {
-  if (gameData.isMyTurn) {
-    socket.emit("game:clear_canvas", { room: currentRoom });
-  } else {
-    displayError("Only the drawer can clear the canvas!");
-  }
-});
-
-// Game control buttons
-startGameBtnDesktop.addEventListener("click", () => {
-  if (gameData.creatorId === myId) {
-    socket.emit("game:start", currentRoom);
-  } else {
-    displayError("Only the room creator can start the game.");
-  }
-});
-startGameBtnMobile.addEventListener("click", () => {
-  if (gameData.creatorId === myId) {
-    socket.emit("game:start", currentRoom);
-  } else {
-    displayError("Only the room creator can start the game.");
-  }
-});
-
-endGameBtnDesktop.addEventListener("click", () => {
-  if (gameData.creatorId === myId) {
-    socket.emit("game:end", currentRoom);
-  } else {
-    displayError("Only the room creator can end the game.");
-  }
-});
-endGameBtnMobile.addEventListener("click", () => {
-  if (gameData.creatorId === myId) {
-    socket.emit("game:end", currentRoom);
-  } else {
-    displayError("Only the room creator can end the game.");
-  }
 });
 
 // --- Socket Event Handlers ---
@@ -381,9 +302,9 @@ function updateUserList() {
 function switchRoom(roomName, title) {
   if (currentRoom === roomName) return;
 
-  // Clear previous game state if switching from a game room
+  // Leave the old room if it's a game room
   if (currentRoom.startsWith("game-")) {
-    endGame();
+    endGame(); // Clean up game UI
   }
 
   currentRoom = roomName;
@@ -392,36 +313,15 @@ function switchRoom(roomName, title) {
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
 
+  // Only emit join room for non-game rooms, as game room joining is handled separately
   if (!roomName.startsWith("game-")) {
     socket.emit("join room", currentRoom);
-    gameContainer.style.display = "none"; // Hide game elements
-    drawingTools.style.display = "none";
-    gameData.isGameActive = false;
-    gameData.isMyTurn = false;
-    updateGameControls();
+    endGame();
+    startGameBtn.style.display = "none";
   } else {
-    gameContainer.style.display = "flex"; // Show game elements
-    socket.emit("game:join", currentRoom); // Join the game room
-    setupCanvas(); // Ensure canvas is correctly sized when game container becomes visible
+    // We are in a game room, show the game container
+    gameContainer.style.display = "flex";
   }
-}
-
-function endGame() {
-  gameData.isGameActive = false;
-  gameData.isMyTurn = false;
-  gameData.word = "";
-  gameData.drawer = null;
-  gameData.scores = {};
-  gameData.roundTimeLeft = 0;
-  gameData.creatorId = null; // Clear creator ID too
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height); // Clear canvas
-  gameContainer.style.display = "none";
-  drawingTools.style.display = "none";
-  gameStatusSpan.textContent = "Waiting for game to start...";
-  gameWordSpan.textContent = "";
-  updateScoresDisplay({});
-  clearInterval(roundTimerInterval); // Stop any running timer
-  updateGameControls(); // Update button visibility
 }
 
 // --- Helper & UI Functions ---
@@ -437,26 +337,8 @@ function adjustHeightForKeyboard() {
       "--vh",
       `${window.innerHeight * 0.01}px`
     );
-    // This is a common hack for mobile keyboard pushing up content
-    // Could also set a dynamic CSS variable for input-area height if needed.
-    const inputAreaHeight = document.getElementById("input-area").offsetHeight;
-    document.documentElement.style.setProperty(
-      "--input-area-height",
-      `${inputAreaHeight}px`
-    );
-    // Example: adjust gameContainer bottom based on inputAreaHeight
-    gameContainer.style.bottom = `calc(12px + var(--input-area-height))`;
-  } else {
-    document.documentElement.style.setProperty("--vh", "1vh"); // Reset on desktop
-    document.documentElement.style.setProperty(
-      "--input-area-height",
-      `68px + 12px`
-    ); // Default desktop height
-    gameContainer.style.bottom = `calc(16px + 68px + 12px)`;
   }
-  setupCanvas(); // Recalculate canvas size after layout adjustment
 }
-
 function displayError(msg) {
   errorMessage.textContent = msg;
   errorMessage.style.opacity = "1";
@@ -465,7 +347,6 @@ function displayError(msg) {
     errorMessage.style.opacity = "0";
   }, 3000);
 }
-
 function applyTheme(theme) {
   if (theme === "dark") {
     document.body.classList.add("dark-mode");
@@ -475,7 +356,6 @@ function applyTheme(theme) {
     themeToggleBtn.textContent = "🌙";
   }
 }
-
 function applyBackground(url) {
   if (url) {
     messages.style.backgroundImage = `url(${url})`;
@@ -487,7 +367,6 @@ function applyBackground(url) {
     localStorage.removeItem("chatBackground");
   }
 }
-
 function populateBackgroundOptions(container) {
   if (!container) return;
   container.innerHTML = "";
@@ -505,117 +384,7 @@ function populateBackgroundOptions(container) {
   });
 }
 
-function updateGameControls() {
-  const isCreator = gameData.creatorId === myId;
-  const inGameRoom = currentRoom.startsWith("game-");
-  const isGameActive = gameData.isGameActive;
-
-  // Desktop buttons
-  if (startGameBtnDesktop && endGameBtnDesktop) {
-    startGameBtnDesktop.style.display =
-      inGameRoom && isCreator && !isGameActive ? "block" : "none";
-    endGameBtnDesktop.style.display =
-      inGameRoom && isCreator && isGameActive ? "block" : "none";
-  }
-  // Mobile buttons
-  if (startGameBtnMobile && endGameBtnMobile) {
-    startGameBtnMobile.style.display =
-      inGameRoom && isCreator && !isGameActive ? "block" : "none";
-    endGameBtnMobile.style.display =
-      inGameRoom && isCreator && isGameActive ? "block" : "none";
-  }
-}
-
-function updateScoresDisplay(scores) {
-  gameScoresDiv.innerHTML = "Scores: ";
-  if (Object.keys(scores).length === 0) {
-    gameScoresDiv.textContent = ""; // Hide if no scores
-    return;
-  }
-
-  const scoreEntries = Object.entries(scores).sort(
-    ([, scoreA], [, scoreB]) => scoreB - scoreA
-  );
-  scoreEntries.forEach(([playerId, score]) => {
-    const user = latestUsers.find((u) => u.id === playerId);
-    if (user) {
-      const scoreSpan = document.createElement("span");
-      scoreSpan.textContent = `${user.name}: ${score} | `;
-      gameScoresDiv.appendChild(scoreSpan);
-    }
-  });
-  // Remove the last " | "
-  if (
-    gameScoresDiv.lastChild &&
-    gameScoresDiv.lastChild.textContent.endsWith(" | ")
-  ) {
-    gameScoresDiv.lastChild.textContent =
-      gameScoresDiv.lastChild.textContent.slice(0, -3);
-  }
-}
-
 // --- GAME LOGIC ---
-// Canvas Drawing Functions
-function setupCanvas() {
-  // Set canvas dimensions to match its parent (#gameContainer)
-  // Ensure gameContainer is visible before setting dimensions
-  if (gameContainer.style.display === "flex") {
-    const containerRect = gameCanvas.parentElement.getBoundingClientRect();
-    gameCanvas.width = containerRect.width;
-    gameCanvas.height = containerRect.height;
-    ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height); // Clear on resize
-
-    // Restore drawing properties
-    ctx.strokeStyle = currentStrokeColor;
-    ctx.lineWidth = currentStrokeSize;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-  }
-}
-
-function drawLine(x0, y0, x1, y1, color, size) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = size;
-  ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(x1, y1);
-  ctx.stroke();
-}
-
-function handleMouseDown(e) {
-  if (!gameData.isMyTurn) return; // Only drawer can draw
-  isDrawing = true;
-  [lastX, lastY] = [e.offsetX, e.offsetY];
-}
-
-function handleMouseMove(e) {
-  if (!isDrawing || !gameData.isMyTurn) return;
-
-  const newX = e.offsetX;
-  const newY = e.offsetY;
-
-  // Draw locally
-  drawLine(lastX, lastY, newX, newY, currentStrokeColor, currentStrokeSize);
-
-  // Emit drawing data to server
-  socket.emit("game:draw", {
-    room: currentRoom,
-    data: {
-      x0: lastX,
-      y0: lastY,
-      x1: newX,
-      y1: newY,
-      color: currentStrokeColor,
-      size: currentStrokeSize,
-    },
-  });
-
-  [lastX, lastY] = [newX, newY];
-}
-
-function handleMouseUp() {
-  isDrawing = false;
-}
 
 // Game Socket Handlers
 socket.on("game:roomsList", (rooms) => {
@@ -623,162 +392,187 @@ socket.on("game:roomsList", (rooms) => {
 });
 
 socket.on("game:joined", (roomData) => {
-  addMessage(
-    { name: "System", text: `You have joined room: ${roomData.name}` },
-    "system"
-  );
-  gameData.creatorId = roomData.creatorId; // Store creator ID
-  updateGameControls();
-  if (roomData.isRoundActive) {
-    // If game is already active, request state
-    socket.emit("game:request_state", currentRoom);
-  } else {
-    gameStatusSpan.textContent = "Waiting for game to start...";
-    gameWordSpan.textContent = "";
-    drawingTools.style.display = "none";
-    updateScoresDisplay(roomData.scores || {});
+  switchRoom(roomData.id, `🎮 ${roomData.name}`);
+  if (allUsersModal.style.display === "flex") {
+    allUsersModal.style.display = "none";
   }
 });
 
 socket.on("game:state", (state) => {
-  gameData.isGameActive = state.isRoundActive;
-  gameData.word = state.word; // This will be the hidden word for guessers, actual word for drawer
-  gameData.drawer = state.drawer;
-  gameData.scores = state.scores;
-  gameData.roundTimeLeft = state.roundTimeLeft;
-  gameData.creatorId = state.creatorId; // Ensure creatorId is updated on state changes
+  gameContainer.style.display = "flex";
 
-  gameData.isMyTurn = gameData.drawer && gameData.drawer.id === myId;
-
-  // Clear canvas and drawing event listeners when state changes to ensure consistency
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  gameCanvas.removeEventListener("mousedown", handleMouseDown);
-  gameCanvas.removeEventListener("mousemove", handleMouseMove);
-  gameCanvas.removeEventListener("mouseup", handleMouseUp);
-  gameCanvas.removeEventListener("mouseleave", handleMouseUp);
-
-  if (gameData.isMyTurn) {
-    gameCanvas.addEventListener("mousedown", handleMouseDown);
-    gameCanvas.addEventListener("mousemove", handleMouseMove);
-    gameCanvas.addEventListener("mouseup", handleMouseUp);
-    gameCanvas.addEventListener("mouseleave", handleMouseUp);
-    drawingTools.style.display = "flex"; // Show drawing tools
-    gameStatusSpan.textContent = `Your turn! Draw:`;
-    gameWordSpan.textContent = `"${gameData.word}"`;
+  // Show/hide start button for creator
+  if (state.creatorId === myId && !state.isRoundActive) {
+    startGameBtn.style.display = "block";
+    startGameBtn.disabled = false;
+    gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
   } else {
-    drawingTools.style.display = "none"; // Hide drawing tools
-    gameStatusSpan.textContent = `Drawing by: ${
-      gameData.drawer ? gameData.drawer.name : "..."
-    }`;
-    gameWordSpan.textContent = `"${gameData.word.replace(/./g, "_")}"`; // Show blank word for others
+    startGameBtn.style.display = "none";
   }
 
-  // Update round timer display
-  clearInterval(roundTimerInterval);
-  if (gameData.isGameActive) {
-    updateRoundTimerDisplay(gameData.roundTimeLeft);
-    roundTimerInterval = setInterval(() => {
-      gameData.roundTimeLeft -= 1000;
-      if (gameData.roundTimeLeft < 0) gameData.roundTimeLeft = 0; // Prevent negative
-      updateRoundTimerDisplay(gameData.roundTimeLeft);
-      if (gameData.roundTimeLeft <= 0) {
-        clearInterval(roundTimerInterval);
-      }
-    }, 1000);
-  } else {
-    gameStatusSpan.textContent = "Game ended. Waiting for next round...";
-    gameWordSpan.textContent = "";
-    clearInterval(roundTimerInterval);
+  if (state.isRoundActive) {
+    if (state.drawer.id === myId) {
+      gameInfo.textContent = "Your turn to draw!";
+      drawingTools.style.display = "flex";
+      gameCanvas.style.cursor = "crosshair";
+    } else {
+      gameInfo.textContent = `${state.drawer.name} is drawing...`;
+      drawingTools.style.display = "none";
+      gameCanvas.style.cursor = "not-allowed";
+    }
   }
-
-  updateScoresDisplay(gameData.scores);
-  updateGameControls(); // Re-evaluate button visibility
 });
 
-socket.on("game:draw", ({ data }) => {
-  drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.size);
+socket.on("game:word_prompt", (word) => {
+  gameInfo.textContent = `Your turn! Draw the word: ${word}`;
+});
+
+socket.on("game:message", (text) => {
+  addMessage({ text }, "system");
+});
+
+socket.on("game:correct_guess", ({ guesser, word, scores }) => {
+  addMessage(
+    { text: `${guesser.name} guessed the word correctly! It was "${word}".` },
+    "system"
+  );
+});
+
+socket.on("game:end", (text) => {
+  addMessage({ text }, "system");
+  endGame(false); // Don't switch rooms, just end the game UI
+  startGameBtn.style.display = "block";
+  startGameBtn.disabled = false;
+});
+
+socket.on("game:draw", (data) => {
+  drawLine(data.x0, data.y0, data.x1, data.y1, false);
 });
 
 socket.on("game:clear_canvas", () => {
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 });
 
-socket.on("game:correct_guess", ({ guesser, word, scores }) => {
-  addMessage(
-    {
-      name: "System",
-      text: `${guesser.name} guessed the word "${word}"!`,
-    },
-    "system"
-  );
-  updateScoresDisplay(scores); // Update scores immediately
-  // A new round will be started by the server, and game:state will update clients
+// Game UI Event Listeners
+const handleCreateGameRoom = () => {
+  const roomName = prompt("Enter a name for your game room:", "My Doodle Room");
+  if (roomName && roomName.trim()) {
+    socket.emit("game:create", roomName.trim());
+  }
+};
+createGameRoomBtnDesktop.addEventListener("click", handleCreateGameRoom);
+createGameRoomBtnMobile.addEventListener("click", handleCreateGameRoom);
+
+startGameBtn.addEventListener("click", () => {
+  if (currentRoom.startsWith("game-")) {
+    socket.emit("game:start", currentRoom);
+    startGameBtn.disabled = true;
+    startGameBtn.style.display = "none";
+  }
 });
 
-socket.on("game:message", (message) => {
-  addMessage({ name: "System", text: message }, "system");
-});
-
-socket.on("game:ended", () => {
-  addMessage({ name: "System", text: "Game has ended." }, "system");
-  endGame(); // Reset client-side game state
+clearCanvasBtn.addEventListener("click", () => {
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  socket.emit("game:clear_canvas", currentRoom);
 });
 
 function updateGameRoomList(rooms) {
   const renderList = (container) => {
     container.innerHTML = "";
     if (rooms.length === 0) {
-      container.innerHTML = "<p>No game rooms available.</p>";
+      container.innerHTML = '<p class="no-rooms-msg">No active game rooms.</p>';
       return;
     }
     rooms.forEach((room) => {
-      const roomDiv = document.createElement("div");
-      roomDiv.className = `game-room ${
-        currentRoom === room.id ? "active" : ""
-      }`;
-      roomDiv.innerHTML = `
-                <span>${room.name} (${room.players.length} players)</span>
-                <button data-room-id="${room.id}">Join</button>
-            `;
-      roomDiv.querySelector("button").onclick = () => {
-        switchRoom(room.id, `✏️ Game: ${room.name}`);
-        if (allUsersModal.style.display === "flex")
-          allUsersModal.style.display = "none"; // Close modal on join
+      const item = document.createElement("div");
+      item.className = "game-room-item";
+
+      const roomInfo = document.createElement("span");
+      roomInfo.title = `${room.name} (by ${room.creatorName})`;
+      roomInfo.textContent = `${room.name} (${room.players.length}p)`;
+
+      const joinBtn = document.createElement("button");
+      joinBtn.textContent = "Join";
+      joinBtn.onclick = () => {
+        socket.emit("game:join", room.id);
       };
-      container.appendChild(roomDiv);
+
+      item.appendChild(roomInfo);
+      item.appendChild(joinBtn);
+      container.appendChild(item);
     });
   };
   renderList(gameRoomListDesktop);
   renderList(gameRoomListMobile);
 }
 
-createGameRoomBtnDesktop.addEventListener("click", () => {
-  createGameModal.style.display = "flex";
-  roomNameInput.focus();
-});
-createGameRoomBtnMobile.addEventListener("click", () => {
-  createGameModal.style.display = "flex";
-  roomNameInput.focus();
-});
-
-cancelCreateGameBtn.addEventListener("click", () => {
-  createGameModal.style.display = "none";
-});
-
-createGameForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const roomName = roomNameInput.value.trim();
-  if (roomName) {
-    socket.emit("game:create", roomName);
-    createGameModal.style.display = "none";
-    roomNameInput.value = ""; // Clear input
-  }
-});
-
-function updateRoundTimerDisplay(ms) {
-  const seconds = Math.floor(ms / 1000);
-  gameStatusSpan.textContent = `Time left: ${seconds}s`;
+// Canvas Functions
+function setupCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = gameCanvas.getBoundingClientRect();
+  gameCanvas.width = rect.width * dpr;
+  gameCanvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.lineWidth = 5;
 }
 
-// Ensure initial state of game controls
-updateGameControls();
+function drawLine(x0, y0, x1, y1, emit) {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.strokeStyle = document.body.classList.contains("dark-mode")
+    ? "#FFFFFF"
+    : "#000000";
+  ctx.stroke();
+  ctx.closePath();
+  if (!emit) return;
+  socket.emit("game:draw", { room: currentRoom, data: { x0, y0, x1, y1 } });
+}
+
+function handleStart(e) {
+  if (gameInfo.textContent.startsWith("Your turn")) {
+    isDrawing = true;
+    const pos = getMousePos(e);
+    [lastX, lastY] = [pos.x, pos.y];
+  }
+}
+function handleMove(e) {
+  if (isDrawing) {
+    e.preventDefault();
+    const pos = getMousePos(e);
+    drawLine(lastX, lastY, pos.x, pos.y, true);
+    [lastX, lastY] = [pos.x, pos.y];
+  }
+}
+function handleEnd() {
+  isDrawing = false;
+}
+function getMousePos(e) {
+  const rect = gameCanvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top,
+  };
+}
+// Mouse events
+gameCanvas.addEventListener("mousedown", handleStart);
+gameCanvas.addEventListener("mousemove", handleMove);
+gameCanvas.addEventListener("mouseup", handleEnd);
+gameCanvas.addEventListener("mouseout", handleEnd);
+// Touch events
+gameCanvas.addEventListener("touchstart", handleStart);
+gameCanvas.addEventListener("touchmove", handleMove);
+gameCanvas.addEventListener("touchend", handleEnd);
+
+function endGame(hideContainer = true) {
+  if (hideContainer) gameContainer.style.display = "none";
+  gameInfo.textContent = "";
+  drawingTools.style.display = "none";
+  gameCanvas.style.cursor = "default";
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  startGameBtn.style.display = "none";
+}
