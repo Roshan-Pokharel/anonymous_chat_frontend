@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>Doodle Dash Chat</title>
+    <title>Anonymous Chat</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,10 +16,11 @@
     />
   </head>
   <body>
-    <!-- Initial User Profile Modal -->
     <div id="userModal" class="modal">
       <form id="userForm" class="modal-content">
-        <h2>👤 Welcome! Set your profile</h2>
+        <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
+          👤 Welcome! Set your profile
+        </h2>
         <input
           type="text"
           id="nicknameInput"
@@ -36,24 +37,21 @@
           required
         />
         <div class="gender-group">
-          <label
-            ><input type="radio" name="gender" value="male" checked /><span
-              >♂ Male</span
-            ></label
-          >
-          <label
-            ><input type="radio" name="gender" value="female" /><span
-              >♀ Female</span
-            ></label
-          >
+          <label>
+            <input type="radio" name="gender" value="male" checked />
+            <span style="color: #3b82f6; font-weight: 600">♂ Male</span>
+          </label>
+          <label>
+            <input type="radio" name="gender" value="female" />
+            <span style="color: #e75480; font-weight: 600">♀ Female</span>
+          </label>
         </div>
         <button type="submit">Start Chatting 🚀</button>
       </form>
     </div>
 
-    <!-- Mobile Menu Modal -->
-    <div id="mobileMenuModal" class="modal" style="display: none">
-      <div class="modal-content">
+    <div id="allUsersModal" class="modal" style="display: none">
+      <div class="modal-content" style="max-height: 80vh; overflow-y: auto">
         <div id="mobileModalNav">
           <button class="modal-nav-btn active" data-tab="users">Users</button>
           <button class="modal-nav-btn" data-tab="game">Game</button>
@@ -61,57 +59,69 @@
             Appearance
           </button>
         </div>
-        <div id="mobileModalContent">
-          <!-- Users Tab -->
-          <div id="usersTab" class="modal-tab-content active">
-            <h3>Online Users</h3>
-            <div id="allUsersList"></div>
-          </div>
-          <!-- Game Tab -->
-          <div id="gameTab" class="modal-tab-content">
-            <h3>Doodle Dash</h3>
-            <div id="gameControlsMobile"></div>
-          </div>
-          <!-- Appearance Tab -->
-          <div id="appearanceTab" class="modal-tab-content">
-            <h3>Chat Background</h3>
-            <div
-              id="backgroundOptionsMobile"
-              class="background-options-grid"
-            ></div>
-          </div>
+
+        <div id="usersTab" class="modal-tab-content active">
+          <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
+            Online Users
+          </h3>
+          <div id="allUsersList"></div>
         </div>
-        <button id="closeMobileModalBtn">Close</button>
+
+        <div id="gameTab" class="modal-tab-content">
+          <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
+            Doodle Dash
+          </h3>
+          <div id="gameControlsMobile"></div>
+        </div>
+
+        <div id="appearanceTab" class="modal-tab-content">
+          <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
+            🎨 Chat Background
+          </h4>
+          <div
+            id="backgroundOptionsMobile"
+            class="background-options-grid"
+          ></div>
+        </div>
+
+        <button
+          onclick="document.getElementById('allUsersModal').style.display='none';"
+          style="margin-top: 16px"
+        >
+          Close
+        </button>
       </div>
     </div>
 
-    <!-- Main Application UI -->
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
         <button id="theme-toggle" title="Toggle dark mode">🌙</button>
-        <button id="showMenuBtn">☰ Menu</button>
+        <button id="showUsersBtn">☰ Menu</button>
       </div>
     </div>
 
     <div class="container">
-      <!-- Sidebar (Desktop) -->
       <div id="sidebar">
-        <div id="userListContainer">
-          <h3>👥 Online Users</h3>
+        <div id="userListContainer" style="flex: 1; overflow-y: auto">
+          <h3 style="margin-bottom: 12px">👥 Online Users</h3>
           <div id="userList"></div>
         </div>
-        <div id="gameControlsDesktop" class="sidebar-section"></div>
-        <div class="sidebar-section">
+        <div class="game-controls-desktop">
+          <h4>✏️ Doodle Dash</h4>
+          <div id="gameControlsDesktop">
+            <button id="startGameBtn">Start Game</button>
+          </div>
+        </div>
+        <div class="background-settings">
           <h4>🎨 Room Background</h4>
           <div id="backgroundOptions" class="background-options-grid"></div>
         </div>
       </div>
 
-      <!-- Main Chat Area -->
       <div id="chat">
         <div id="gameContainer" style="display: none">
-          <div id="gameInfoBar"></div>
+          <div id="gameInfo"></div>
           <canvas id="gameCanvas"></canvas>
           <div id="drawingTools" style="display: none">
             <button id="clearCanvasBtn">Clear</button>
@@ -127,7 +137,7 @@
               type="text"
               placeholder="Type your message or guess..."
               autocomplete="off"
-              maxlength="100"
+              maxlength="500"
             />
             <button type="submit">Send</button>
           </form>
