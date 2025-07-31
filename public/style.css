@@ -623,3 +623,59 @@ body.dark-mode #typing-indicator {
     padding: 6px 4px env(safe-area-inset-bottom, 10px) 4px;
   }
 }
+
+/* --- ADDED STYLES FOR NEW FEATURES --- */
+
+/* Better spacing for game control buttons */
+.game-controls-desktop #startGameBtn,
+.game-controls-desktop #stopGameBtn {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+#gameControlsMobile #startGameBtnMobile,
+#gameControlsMobile #stopGameBtnMobile {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+/* Final scoreboard modal clarity */
+#scoreboardTitle {
+  margin-top: 0;
+  margin-bottom: 18px;
+  color: var(--primary-accent);
+  text-align: center;
+}
+
+#finalScores h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+#finalScores ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#finalScores li {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#finalScores li:last-child {
+  border-bottom: none;
+}
+
+#finalScores .score-name {
+  font-weight: 600;
+}
+
+#finalScores .score-points {
+  font-weight: 700;
+  color: var(--secondary-accent);
+}
