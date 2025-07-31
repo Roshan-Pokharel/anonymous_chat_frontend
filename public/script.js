@@ -34,9 +34,15 @@ const gameCanvas = document.getElementById("gameCanvas");
 const gameInfo = document.getElementById("gameInfo");
 const drawingTools = document.getElementById("drawingTools");
 const clearCanvasBtn = document.getElementById("clearCanvasBtn");
-const startGameBtnDesktop = document.getElementById("startGameBtn");
-const gameControlsMobileContainer =
-  document.getElementById("gameControlsMobile");
+const createGameRoomBtnDesktop = document.getElementById(
+  "createGameRoomBtnDesktop"
+);
+const createGameRoomBtnMobile = document.getElementById(
+  "createGameRoomBtnMobile"
+);
+const gameRoomListDesktop = document.getElementById("gameRoomListDesktop");
+const gameRoomListMobile = document.getElementById("gameRoomListMobile");
+const startGameBtn = document.getElementById("startGameBtn");
 
 // --- Application & Game State ---
 let latestUsers = [];
@@ -109,8 +115,7 @@ form.addEventListener("submit", (e) => {
 });
 
 showUsersBtn.onclick = () => {
-  // Populate mobile controls just-in-time
-  populateMobileControls();
+  populateBackgroundOptions(backgroundOptionsMobileContainer);
   allUsersModal.style.display = "flex";
 };
 
@@ -123,20 +128,12 @@ allUsersModal.addEventListener("click", (e) => {
 mobileModalNav.addEventListener("click", (e) => {
   if (e.target.tagName !== "BUTTON") return;
   const tabName = e.target.dataset.tab;
-
-  // Update active button
   document
     .querySelectorAll(".modal-nav-btn")
     .forEach((btn) => btn.classList.remove("active"));
   e.target.classList.add("active");
-
-  // Update active tab content
   modalTabs.forEach((tab) => {
-    if (tab.id === `${tabName}Tab`) {
-      tab.classList.add("active");
-    } else {
-      tab.classList.remove("active");
-    }
+    tab.classList.toggle("active", tab.id === `${tabName}Tab`);
   });
 });
 
@@ -180,16 +177,18 @@ socket.on("message was read", ({ room, messageId }) => {
 });
 
 socket.on("chat message", (msg) => {
+  const isGameRoom = currentRoom.startsWith("game-");
+  // Only show message if it's for the current room OR it's a private message notification
   if (msg.room === currentRoom) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
     addMessage(msg);
-    if (msg.room !== "public") {
+    if (!isGameRoom && msg.room !== "public") {
       const otherId = msg.id === myId ? msg.to : msg.id;
       delete unreadPrivate[otherId];
       updateUserList();
     }
-  } else if (msg.room !== "public" && msg.to === myId) {
+  } else if (!isGameRoom && msg.room !== "public" && msg.to === myId) {
     unreadPrivate[msg.id] = true;
     updateUserList();
   }
@@ -215,22 +214,24 @@ function showUserModal() {
     }
     socket.emit("user info", { nickname, gender, age });
     userModal.style.display = "none";
-    socket.emit("join room", "public");
+    switchRoom("public", "🌐 Public Chat");
   };
 }
 
 function addMessage(msg, type = "") {
   const item = document.createElement("div");
   item.classList.add("msg");
-  item.setAttribute("data-message-id", msg.messageId);
+  if (msg.messageId) {
+    item.setAttribute("data-message-id", msg.messageId);
+  }
 
   const isMe = msg.id && msg.id === myId;
-  const isSystem = type === "system";
+  const isSystem = type === "system" || msg.name === "System";
   if (isSystem) item.classList.add("system");
   else item.classList.add(isMe ? "me" : "other");
 
   const readReceiptHTML =
-    isMe && currentRoom !== "public"
+    isMe && currentRoom !== "public" && !currentRoom.startsWith("game-")
       ? `<span class="read-receipt">${
           msg.status === "read" ? "✓✓" : "✓"
         }</span>`
@@ -240,13 +241,18 @@ function addMessage(msg, type = "") {
     ? ""
     : `<span style="color:${getGenderColor(msg.gender)};">${
         msg.name
-      } ${getGenderSymbol(msg.gender)}${msg.age ? " · " + msg.age : ""}</span>`;
+      }${getGenderSymbol(msg.gender)}${msg.age ? " · " + msg.age : ""}</span>`;
 
   item.innerHTML = `<div class="bubble">${nameHTML}${msg.text}${readReceiptHTML}</div>`;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
 
-  if (!isMe && currentRoom !== "public") {
+  if (
+    !isMe &&
+    !isSystem &&
+    currentRoom !== "public" &&
+    !currentRoom.startsWith("game-")
+  ) {
     socket.emit("message read", {
       room: currentRoom,
       messageId: msg.messageId,
@@ -274,7 +280,7 @@ function updateUserList() {
       div.innerHTML =
         `<span style="color:${getGenderColor(user.gender)};">${
           user.name
-        } ${getGenderSymbol(user.gender)}${
+        }${getGenderSymbol(user.gender)}${
           user.age ? " · " + user.age : ""
         }</span>` +
         (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
@@ -295,29 +301,27 @@ function updateUserList() {
 
 function switchRoom(roomName, title) {
   if (currentRoom === roomName) return;
+
+  // Leave the old room if it's a game room
+  if (currentRoom.startsWith("game-")) {
+    endGame(); // Clean up game UI
+  }
+
   currentRoom = roomName;
   roomTitle.textContent = title;
   messages.innerHTML = "";
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
-  socket.emit("join room", currentRoom);
-  // End any active game when switching rooms
-  endGame();
-}
 
-function populateMobileControls() {
-  // Populate game controls
-  gameControlsMobileContainer.innerHTML = ""; // Clear first
-  const startBtn = document.createElement("button");
-  startBtn.textContent = "Start New Game";
-  startBtn.onclick = () => {
-    socket.emit("game:start", currentRoom);
-    allUsersModal.style.display = "none";
-  };
-  gameControlsMobileContainer.appendChild(startBtn);
-
-  // Populate background options
-  populateBackgroundOptions(backgroundOptionsMobileContainer);
+  // Only emit join room for non-game rooms, as game room joining is handled separately
+  if (!roomName.startsWith("game-")) {
+    socket.emit("join room", currentRoom);
+    endGame();
+    startGameBtn.style.display = "none";
+  } else {
+    // We are in a game room, show the game container
+    gameContainer.style.display = "flex";
+  }
 }
 
 // --- Helper & UI Functions ---
@@ -383,18 +387,39 @@ function populateBackgroundOptions(container) {
 // --- GAME LOGIC ---
 
 // Game Socket Handlers
+socket.on("game:roomsList", (rooms) => {
+  updateGameRoomList(rooms);
+});
+
+socket.on("game:joined", (roomData) => {
+  switchRoom(roomData.id, `🎮 ${roomData.name}`);
+  if (allUsersModal.style.display === "flex") {
+    allUsersModal.style.display = "none";
+  }
+});
+
 socket.on("game:state", (state) => {
   gameContainer.style.display = "flex";
-  if (state.drawer.id === myId) {
-    // I am the drawer
-    gameInfo.textContent = "Your turn to draw!";
-    drawingTools.style.display = "flex";
-    gameCanvas.style.cursor = "crosshair";
+
+  // Show/hide start button for creator
+  if (state.creatorId === myId && !state.isRoundActive) {
+    startGameBtn.style.display = "block";
+    startGameBtn.disabled = false;
+    gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
   } else {
-    // I am a guesser
-    gameInfo.textContent = `${state.drawer.name} is drawing...`;
-    drawingTools.style.display = "none";
-    gameCanvas.style.cursor = "not-allowed";
+    startGameBtn.style.display = "none";
+  }
+
+  if (state.isRoundActive) {
+    if (state.drawer.id === myId) {
+      gameInfo.textContent = "Your turn to draw!";
+      drawingTools.style.display = "flex";
+      gameCanvas.style.cursor = "crosshair";
+    } else {
+      gameInfo.textContent = `${state.drawer.name} is drawing...`;
+      drawingTools.style.display = "none";
+      gameCanvas.style.cursor = "not-allowed";
+    }
   }
 });
 
@@ -411,12 +436,13 @@ socket.on("game:correct_guess", ({ guesser, word, scores }) => {
     { text: `${guesser.name} guessed the word correctly! It was "${word}".` },
     "system"
   );
-  // Can optionally display scores here
 });
 
 socket.on("game:end", (text) => {
   addMessage({ text }, "system");
-  endGame();
+  endGame(false); // Don't switch rooms, just end the game UI
+  startGameBtn.style.display = "block";
+  startGameBtn.disabled = false;
 });
 
 socket.on("game:draw", (data) => {
@@ -428,14 +454,57 @@ socket.on("game:clear_canvas", () => {
 });
 
 // Game UI Event Listeners
-startGameBtnDesktop.addEventListener("click", () => {
-  socket.emit("game:start", currentRoom);
+const handleCreateGameRoom = () => {
+  const roomName = prompt("Enter a name for your game room:", "My Doodle Room");
+  if (roomName && roomName.trim()) {
+    socket.emit("game:create", roomName.trim());
+  }
+};
+createGameRoomBtnDesktop.addEventListener("click", handleCreateGameRoom);
+createGameRoomBtnMobile.addEventListener("click", handleCreateGameRoom);
+
+startGameBtn.addEventListener("click", () => {
+  if (currentRoom.startsWith("game-")) {
+    socket.emit("game:start", currentRoom);
+    startGameBtn.disabled = true;
+    startGameBtn.style.display = "none";
+  }
 });
 
 clearCanvasBtn.addEventListener("click", () => {
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   socket.emit("game:clear_canvas", currentRoom);
 });
+
+function updateGameRoomList(rooms) {
+  const renderList = (container) => {
+    container.innerHTML = "";
+    if (rooms.length === 0) {
+      container.innerHTML = '<p class="no-rooms-msg">No active game rooms.</p>';
+      return;
+    }
+    rooms.forEach((room) => {
+      const item = document.createElement("div");
+      item.className = "game-room-item";
+
+      const roomInfo = document.createElement("span");
+      roomInfo.title = `${room.name} (by ${room.creatorName})`;
+      roomInfo.textContent = `${room.name} (${room.players.length}p)`;
+
+      const joinBtn = document.createElement("button");
+      joinBtn.textContent = "Join";
+      joinBtn.onclick = () => {
+        socket.emit("game:join", room.id);
+      };
+
+      item.appendChild(roomInfo);
+      item.appendChild(joinBtn);
+      container.appendChild(item);
+    });
+  };
+  renderList(gameRoomListDesktop);
+  renderList(gameRoomListMobile);
+}
 
 // Canvas Functions
 function setupCanvas() {
@@ -499,10 +568,11 @@ gameCanvas.addEventListener("touchstart", handleStart);
 gameCanvas.addEventListener("touchmove", handleMove);
 gameCanvas.addEventListener("touchend", handleEnd);
 
-function endGame() {
-  gameContainer.style.display = "none";
+function endGame(hideContainer = true) {
+  if (hideContainer) gameContainer.style.display = "none";
   gameInfo.textContent = "";
   drawingTools.style.display = "none";
   gameCanvas.style.cursor = "default";
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  startGameBtn.style.display = "none";
 }

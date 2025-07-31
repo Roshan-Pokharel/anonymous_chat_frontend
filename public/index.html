@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>Anonymous Chat</title>
+    <title>Anonymous Chat & Doodle</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,6 +16,7 @@
     />
   </head>
   <body>
+    <!-- Modal for initial user profile setup -->
     <div id="userModal" class="modal">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -50,6 +51,7 @@
       </form>
     </div>
 
+    <!-- Main modal for mobile view with tabs -->
     <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content" style="max-height: 80vh; overflow-y: auto">
         <div id="mobileModalNav">
@@ -60,6 +62,7 @@
           </button>
         </div>
 
+        <!-- Users Tab -->
         <div id="usersTab" class="modal-tab-content active">
           <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
             Online Users
@@ -67,13 +70,19 @@
           <div id="allUsersList"></div>
         </div>
 
+        <!-- Game Tab -->
         <div id="gameTab" class="modal-tab-content">
           <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
             Doodle Dash
           </h3>
-          <div id="gameControlsMobile"></div>
+          <div id="gameControlsMobile">
+            <button id="createGameRoomBtnMobile">Create Game Room</button>
+            <h4 class="room-list-header">Available Rooms</h4>
+            <div id="gameRoomListMobile"></div>
+          </div>
         </div>
 
+        <!-- Appearance Tab -->
         <div id="appearanceTab" class="modal-tab-content">
           <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
             🎨 Chat Background
@@ -93,6 +102,7 @@
       </div>
     </div>
 
+    <!-- Top navigation bar -->
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
@@ -101,25 +111,36 @@
       </div>
     </div>
 
+    <!-- Main container for sidebar and chat -->
     <div class="container">
       <div id="sidebar">
+        <!-- User list for desktop -->
         <div id="userListContainer" style="flex: 1; overflow-y: auto">
           <h3 style="margin-bottom: 12px">👥 Online Users</h3>
           <div id="userList"></div>
         </div>
+
+        <!-- Game controls for desktop -->
         <div class="game-controls-desktop">
           <h4>✏️ Doodle Dash</h4>
-          <div id="gameControlsDesktop">
-            <button id="startGameBtn">Start Game</button>
+          <button id="createGameRoomBtnDesktop">Create Game Room</button>
+          <h4 class="room-list-header">Available Rooms</h4>
+          <div id="gameRoomListDesktop">
+            <p class="no-rooms-msg">No active game rooms.</p>
           </div>
+          <button id="startGameBtn" style="display: none">Start Game</button>
         </div>
+
+        <!-- Background settings for desktop -->
         <div class="background-settings">
           <h4>🎨 Room Background</h4>
           <div id="backgroundOptions" class="background-options-grid"></div>
         </div>
       </div>
 
+      <!-- Main chat area -->
       <div id="chat">
+        <!-- Game container, shown when in a game room -->
         <div id="gameContainer" style="display: none">
           <div id="gameInfo"></div>
           <canvas id="gameCanvas"></canvas>
@@ -127,7 +148,10 @@
             <button id="clearCanvasBtn">Clear</button>
           </div>
         </div>
+
         <div id="messages"></div>
+
+        <!-- Message input area -->
         <div id="input-area">
           <div id="typing-indicator"></div>
           <div id="error-message"></div>

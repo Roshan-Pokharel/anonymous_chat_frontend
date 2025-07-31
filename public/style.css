@@ -15,6 +15,8 @@
   --modal-content-bg: #ffffff;
   --primary-accent: #4f46e5;
   --primary-accent-hover: #4338ca;
+  --secondary-accent: #10b981;
+  --secondary-accent-hover: #059669;
   --shadow-color: rgba(0, 0, 0, 0.05);
   --error-color: #ef4444;
   --game-info-bg: rgba(255, 255, 255, 0.85);
@@ -214,6 +216,10 @@ button {
 button:hover {
   background: var(--primary-accent-hover);
 }
+button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
 
 .user {
   background: var(--user-bg);
@@ -309,11 +315,7 @@ body.dark-mode #typing-indicator {
   margin: 0 0 12px 0;
   font-weight: 600;
 }
-.background-settings-mobile {
-  border-top: 1px solid var(--border-color);
-  margin-top: 16px;
-  padding-top: 8px;
-}
+
 .background-options-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
@@ -395,12 +397,56 @@ body.dark-mode #typing-indicator {
   padding-top: 16px;
   border-top: 1px solid var(--border-color);
 }
-.game-controls-desktop h4 {
-  margin: 0 0 12px 0;
+.game-controls-desktop h4,
+.room-list-header {
+  margin: 16px 0 12px 0;
   font-weight: 600;
 }
-.game-controls-desktop button {
+.game-controls-desktop button,
+#gameControlsMobile button {
   width: 100%;
+  margin-bottom: 8px;
+}
+
+/* Game Room List Styles */
+#gameRoomListDesktop,
+#gameRoomListMobile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+.game-room-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: var(--user-bg);
+  border-radius: 8px;
+}
+.game-room-item span {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-room-item button {
+  padding: 5px 12px;
+  font-size: 14px;
+  width: auto;
+  min-width: auto;
+  background-color: var(--secondary-accent);
+}
+.game-room-item button:hover {
+  background-color: var(--secondary-accent-hover);
+}
+.no-rooms-msg {
+  font-style: italic;
+  color: #6b7280;
+  text-align: center;
+  padding: 10px 0;
 }
 
 /* Modal styles */
