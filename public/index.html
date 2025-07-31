@@ -36,126 +36,133 @@
           max="99"
           required
         />
-        <button type="submit">Start Chatting</button>
+        <div class="gender-group">
+          <label>
+            <input type="radio" name="gender" value="male" checked />
+            <span style="color: #3b82f6; font-weight: 600">♂ Male</span>
+          </label>
+          <label>
+            <input type="radio" name="gender" value="female" />
+            <span style="color: #e75480; font-weight: 600">♀ Female</span>
+          </label>
+        </div>
+        <button type="submit">Start Chatting 🚀</button>
       </form>
     </div>
 
-    <div id="allUsersModal" class="modal">
-      <div class="modal-content">
-        <button class="modal-close-btn" id="closeAllUsersModalBtn">
-          &times;
-        </button>
-        <h2 style="color: #4f46e5; text-align: center">All Users</h2>
-        <ul id="allUsersList"></ul>
-      </div>
-    </div>
-
-    <div id="createGameModal" class="modal">
+    <div id="createGameModal" class="modal" style="display: none">
       <form id="createGameForm" class="modal-content">
-        <h2 style="color: #4f46e5; text-align: center">🎮 Create Game Room</h2>
+        <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
+          ✏️ Create a Game Room
+        </h2>
         <input
           type="text"
           id="roomNameInput"
-          placeholder="Enter Room Name"
+          placeholder="Enter room name"
           required
           maxlength="30"
         />
-        <button type="submit">Create Room</button>
-        <button type="button" class="btn-secondary" id="cancelCreateGameBtn">
-          Cancel
-        </button>
+        <div class="modal-buttons">
+          <button type="button" id="cancelCreateGameBtn" class="btn-secondary">
+            Cancel
+          </button>
+          <button type="submit">Create Room</button>
+        </div>
       </form>
     </div>
 
-    <div id="scoreboardModal" class="modal">
+    <div id="scoreboardModal" class="modal" style="display: none">
       <div class="modal-content">
-        <button class="modal-close-btn" id="closeScoreboardModalBtn">
-          &times;
+        <h2 id="scoreboardTitle">🏆 Game Over!</h2>
+        <div id="finalScores"></div>
+        <button type="button" id="closeScoreboardBtn" style="margin-top: 16px">
+          Close
         </button>
-        <h2 id="scoreboardTitle">Current Scores</h2>
-        <div id="scoreboardContent"></div>
       </div>
     </div>
 
-    <div id="finalScoreboardModal" class="modal">
+    <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content">
-        <button class="modal-close-btn" id="closeFinalScoreboardModalBtn">
-          &times;
-        </button>
-        <h2 id="finalScoreboardTitle">Game Over! Final Scores:</h2>
-        <ul id="finalScoresList"></ul>
-      </div>
-    </div>
-
-    <div id="mobile-topbar">
-      <button id="sidebar-toggle-btn">☰</button>
-      <div id="roomTitle">Anonymous Chat & Doodle</div>
-      <button id="theme-toggle">☀️</button>
-    </div>
-    <div id="mobile-sidebar-backdrop"></div>
-
-    <div id="chatContainer">
-      <div id="sidebar">
-        <div class="sidebar-header">
-          <div id="desktop-topbar">
-            <h1 style="color: var(--primary-accent)">Anonymous Doodle</h1>
-            <button id="theme-toggle">☀️</button>
-          </div>
-        </div>
-
-        <div class="sidebar-section">
-          <h3>👥 Online Users</h3>
-          <ul id="userList"></ul>
-          <button
-            id="showUsersBtn"
-            class="btn-secondary"
-            style="margin-top: 10px"
-          >
-            Show All Users
+        <div id="mobileModalNav">
+          <button class="modal-nav-btn active" data-tab="users">Users</button>
+          <button class="modal-nav-btn" data-tab="game">Game</button>
+          <button class="modal-nav-btn" data-tab="appearance">
+            Appearance
           </button>
         </div>
 
-        <div class="sidebar-section game-controls-desktop">
-          <h3>🎮 Game Rooms</h3>
-          <button id="createGameRoomBtn">Create New Game</button>
+        <div id="usersTab" class="modal-tab-content active">
+          <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
+            Online Users
+          </h3>
+          <div id="allUsersList"></div>
+        </div>
+
+        <div id="gameTab" class="modal-tab-content">
+          <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
+            Doodle Dash
+          </h3>
+          <div id="gameControlsMobile">
+            <button id="createGameRoomBtnMobile">Create Game Room</button>
+            <h4 class="room-list-header">Available Rooms</h4>
+            <div id="gameRoomListMobile"></div>
+            <button id="startGameBtnMobile" style="display: none">
+              Start Game
+            </button>
+            <button
+              id="stopGameBtnMobile"
+              style="display: none"
+              class="btn-secondary"
+            >
+              Stop Game
+            </button>
+          </div>
+        </div>
+
+        <div id="appearanceTab" class="modal-tab-content">
+          <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
+            🎨 Chat Background
+          </h4>
+          <div
+            id="backgroundOptionsMobile"
+            class="background-options-grid"
+          ></div>
+        </div>
+
+        <button
+          onclick="document.getElementById('allUsersModal').style.display='none';"
+          style="margin-top: 16px"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+
+    <div id="topBar">
+      <span id="roomTitle">🌐 Public Chat</span>
+      <div class="top-bar-buttons">
+        <button id="theme-toggle" title="Toggle dark mode">🌙</button>
+        <button id="showUsersBtn">☰ Menu</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div id="sidebar">
+        <div id="userListContainer" style="flex: 1; overflow-y: auto">
+          <h3 style="margin-bottom: 12px">👥 Online Users</h3>
+          <div id="userList"></div>
+        </div>
+
+        <div class="game-controls-desktop">
+          <h4>✏️ Doodle Dash</h4>
+          <button id="createGameRoomBtnDesktop">Create Game Room</button>
+          <h4 class="room-list-header">Available Rooms</h4>
           <div id="gameRoomListDesktop">
             <p class="no-rooms-msg">No active game rooms.</p>
           </div>
           <button id="startGameBtn" style="display: none">Start Game</button>
           <button id="stopGameBtn" class="btn-secondary" style="display: none">
             Stop Game
-          </button>
-          <button
-            id="leaveRoomBtn"
-            class="btn-secondary"
-            style="display: none; margin-top: 8px"
-          >
-            Leave Room
-          </button>
-        </div>
-
-        <div class="sidebar-section" id="gameControlsMobile">
-          <h3>🎮 Game Rooms</h3>
-          <button id="createGameRoomBtnMobile">Create New Game</button>
-          <div id="gameRoomListMobile">
-            <p class="no-rooms-msg">No active game rooms.</p>
-          </div>
-          <button id="startGameBtnMobile" style="display: none">
-            Start Game
-          </button>
-          <button
-            id="stopGameBtnMobile"
-            class="btn-secondary"
-            style="display: none"
-          >
-            Stop Game
-          </button>
-          <button
-            id="leaveRoomBtnMobile"
-            class="btn-secondary"
-            style="display: none; margin-top: 8px"
-          >
-            Leave Room
           </button>
         </div>
 
@@ -168,11 +175,11 @@
       <div id="chat">
         <div id="gameContainer" style="display: none">
           <div id="gameInfo"></div>
-          <div id="roundEndMessageDisplay" style="display: none"></div>
           <canvas id="gameCanvas"></canvas>
           <div id="drawingTools" style="display: none">
             <button id="clearCanvasBtn">Clear</button>
           </div>
+          <div id="gameOverlayMessage" class="game-overlay-message"></div>
         </div>
 
         <div id="messages"></div>
@@ -194,7 +201,7 @@
       </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
