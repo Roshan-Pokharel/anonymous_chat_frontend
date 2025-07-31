@@ -16,7 +16,6 @@
     />
   </head>
   <body>
-    <!-- Modal for initial user profile setup -->
     <div id="userModal" class="modal">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -33,153 +32,90 @@
           type="number"
           id="ageInput"
           placeholder="Enter your Age"
-          min="18"
-          max="99"
+          min="1"
+          max="120"
           required
         />
-        <div class="gender-group">
-          <label>
-            <input type="radio" name="gender" value="male" checked />
-            <span style="color: #3b82f6; font-weight: 600">♂ Male</span>
-          </label>
-          <label>
-            <input type="radio" name="gender" value="female" />
-            <span style="color: #e75480; font-weight: 600">♀ Female</span>
-          </label>
-        </div>
-        <button type="submit">Start Chatting 🚀</button>
+        <select id="genderInput" required>
+          <option value="">Select Gender</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+        <button type="submit">Join Chat</button>
       </form>
     </div>
 
-    <!-- Modal for creating a game room -->
-    <div id="createGameModal" class="modal" style="display: none">
+    <div id="createGameModal" class="modal">
       <div class="modal-content">
+        <h2>Create New Game Room</h2>
         <form id="createGameForm">
-          <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
-            ✏️ Create a Game Room
-          </h2>
           <input
             type="text"
             id="roomNameInput"
-            placeholder="Enter room name"
+            placeholder="Enter Room Name"
             required
-            maxlength="30"
+            maxlength="20"
           />
-          <div class="modal-buttons">
-            <button
-              type="button"
-              id="cancelCreateGameBtn"
-              class="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button type="submit">Create Room</button>
-          </div>
+          <button type="submit">Create Room</button>
+          <button type="button" id="cancelCreateGameBtn" class="secondary">
+            Cancel
+          </button>
         </form>
       </div>
     </div>
 
-    <!-- Main modal for mobile view with tabs -->
-    <div id="allUsersModal" class="modal" style="display: none">
-      <div class="modal-content" style="max-height: 80vh; overflow-y: auto">
-        <div id="mobileModalNav">
-          <button class="modal-nav-btn active" data-tab="users">Users</button>
-          <button class="modal-nav-btn" data-tab="game">Game</button>
-          <button class="modal-nav-btn" data-tab="appearance">
-            Appearance
-          </button>
-        </div>
-
-        <!-- Users Tab -->
-        <div id="usersTab" class="modal-tab-content active">
-          <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
-            Online Users
-          </h3>
-          <div id="allUsersList"></div>
-        </div>
-
-        <!-- Game Tab -->
-        <div id="gameTab" class="modal-tab-content">
-          <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
-            Doodle Dash
-          </h3>
-          <div id="gameControlsMobile">
-            <button id="createGameRoomBtnMobile">Create Game Room</button>
-            <h4 class="room-list-header">Available Rooms</h4>
-            <div id="gameRoomListMobile"></div>
-          </div>
-        </div>
-
-        <!-- Appearance Tab -->
-        <div id="appearanceTab" class="modal-tab-content">
-          <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
-            🎨 Chat Background
-          </h4>
-          <div
-            id="backgroundOptionsMobile"
-            class="background-options-grid"
-          ></div>
-        </div>
-
-        <button
-          onclick="document.getElementById('allUsersModal').style.display='none';"
-          style="margin-top: 16px"
-        >
-          Close
-        </button>
+    <div id="allUsersModal" class="modal">
+      <div class="modal-content">
+        <h2>All Users</h2>
+        <ul id="allUsersList"></ul>
+        <button class="close-modal-btn">Close</button>
       </div>
     </div>
 
-    <!-- Top navigation bar -->
-    <div id="topBar">
-      <span id="roomTitle">🌐 Public Chat</span>
-      <div class="top-bar-buttons">
-        <button id="theme-toggle" title="Toggle dark mode">🌙</button>
-        <button id="showUsersBtn">☰ Menu</button>
-      </div>
-    </div>
-
-    <!-- Main container for sidebar and chat -->
     <div class="container">
-      <div id="sidebar">
-        <!-- User list for desktop -->
-        <div id="userListContainer" style="flex: 1; overflow-y: auto">
-          <h3 style="margin-bottom: 12px">👥 Online Users</h3>
-          <div id="userList"></div>
-        </div>
+      <div id="topBar">
+        <button id="showUsersBtn" class="icon-btn">👥</button>
+        <h1 id="roomTitle">Global Chat</h1>
+        <button id="theme-toggle" class="icon-btn">💡</button>
+      </div>
 
-        <!-- Game controls for desktop -->
-        <div class="game-controls-desktop">
-          <h4>✏️ Doodle Dash</h4>
-          <button id="createGameRoomBtnDesktop">Create Game Room</button>
-          <h4 class="room-list-header">Available Rooms</h4>
-          <div id="gameRoomListDesktop">
-            <p class="no-rooms-msg">No active game rooms.</p>
+      <div id="sidebar">
+        <div class="room-nav">
+          <h3>Rooms</h3>
+          <ul id="roomList">
+            <li class="room-item active" data-room-id="global">Global Chat</li>
+          </ul>
+          <button id="createGameBtn">Create Game Room</button>
+          <div id="gameRoomsList" class="game-rooms-list">
+            <h4>Active Game Rooms</h4>
+            <p id="noGameRoomsMsg" class="no-rooms-msg">
+              No active game rooms.
+            </p>
           </div>
           <button id="startGameBtn" style="display: none">Start Game</button>
         </div>
 
-        <!-- Background settings for desktop -->
         <div class="background-settings">
           <h4>🎨 Room Background</h4>
           <div id="backgroundOptions" class="background-options-grid"></div>
         </div>
       </div>
 
-      <!-- Main chat area -->
       <div id="chat">
-        <!-- Game container, shown when in a game room -->
         <div id="gameContainer" style="display: none">
           <div id="gameInfo"></div>
           <canvas id="gameCanvas"></canvas>
           <div id="drawingTools" style="display: none">
+            <input type="color" id="colorPicker" value="#000000" />
+            <input type="range" id="strokeWidth" min="1" max="20" value="5" />
             <button id="clearCanvasBtn">Clear</button>
+            <button id="endGameBtn">End Game</button>
           </div>
         </div>
 
         <div id="messages"></div>
 
-        <!-- Message input area -->
         <div id="input-area">
           <div id="typing-indicator"></div>
           <div id="error-message"></div>
@@ -197,7 +133,51 @@
       </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <div id="mobileNavModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-nav-tabs">
+          <button class="modal-nav-btn active" data-tab="rooms">Rooms</button>
+          <button class="modal-nav-btn" data-tab="users">Users</button>
+          <button class="modal-nav-btn" data-tab="settings">Settings</button>
+        </div>
+
+        <div id="mobileRoomsTab" class="modal-tab-content active">
+          <h3>Rooms</h3>
+          <ul id="mobileRoomList">
+            <li class="room-item active" data-room-id="global">Global Chat</li>
+          </ul>
+          <button id="mobileCreateGameBtn">Create Game Room</button>
+          <div id="mobileGameRoomsList" class="game-rooms-list">
+            <h4>Active Game Rooms</h4>
+            <p id="mobileNoGameRoomsMsg" class="no-rooms-msg">
+              No active game rooms.
+            </p>
+          </div>
+          <button id="mobileStartGameBtn" style="display: none">
+            Start Game
+          </button>
+        </div>
+
+        <div id="mobileUsersTab" class="modal-tab-content">
+          <h2>All Users</h2>
+          <ul id="mobileAllUsersList"></ul>
+        </div>
+
+        <div id="mobileSettingsTab" class="modal-tab-content">
+          <h4>🎨 Room Background</h4>
+          <div
+            id="mobileBackgroundOptions"
+            class="background-options-grid"
+          ></div>
+          <button id="mobileThemeToggle" class="btn primary-btn">
+            Toggle Theme
+          </button>
+        </div>
+        <button class="close-modal-btn">Close</button>
+      </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

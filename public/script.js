@@ -5,7 +5,7 @@ const socket = io("https://anonymous-chat-backend-1.onrender.com");
 const form = document.getElementById("form");
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
-const userList = document.getElementById("userList");
+const userList = document.getElementById("userList"); // Not used directly in current HTML but good to keep
 const roomTitle = document.getElementById("roomTitle");
 const showUsersBtn = document.getElementById("showUsersBtn");
 const themeToggleBtn = document.getElementById("theme-toggle");
@@ -18,8 +18,11 @@ const userModal = document.getElementById("userModal");
 const userForm = document.getElementById("userForm");
 const nicknameInput = document.getElementById("nicknameInput");
 const ageInput = document.getElementById("ageInput");
+const genderInput = document.getElementById("genderInput"); // Added gender input
+
 const allUsersModal = document.getElementById("allUsersModal");
 const allUsersList = document.getElementById("allUsersList");
+const closeUserModalBtn = allUsersModal.querySelector(".close-modal-btn");
 
 // New Game Modal Elements
 const createGameModal = document.getElementById("createGameModal");
@@ -27,560 +30,195 @@ const createGameForm = document.getElementById("createGameForm");
 const roomNameInput = document.getElementById("roomNameInput");
 const cancelCreateGameBtn = document.getElementById("cancelCreateGameBtn");
 
-// Mobile Modal Tab elements
-const mobileModalNav = document.getElementById("mobileModalNav");
-const modalTabs = document.querySelectorAll(".modal-tab-content");
-const backgroundOptionsMobileContainer = document.getElementById(
-  "backgroundOptionsMobile"
-);
-
-// Game Elements
+// Game elements
 const gameContainer = document.getElementById("gameContainer");
 const gameCanvas = document.getElementById("gameCanvas");
-const gameInfo = document.getElementById("gameInfo");
+const ctx = gameCanvas.getContext("2d");
 const drawingTools = document.getElementById("drawingTools");
 const clearCanvasBtn = document.getElementById("clearCanvasBtn");
-const createGameRoomBtnDesktop = document.getElementById(
-  "createGameRoomBtnDesktop"
-);
-const createGameRoomBtnMobile = document.getElementById(
-  "createGameRoomBtnMobile"
-);
-const gameRoomListDesktop = document.getElementById("gameRoomListDesktop");
-const gameRoomListMobile = document.getElementById("gameRoomListMobile");
+const colorPicker = document.getElementById("colorPicker");
+const strokeWidthInput = document.getElementById("strokeWidth");
+const gameInfo = document.getElementById("gameInfo");
 const startGameBtn = document.getElementById("startGameBtn");
+const endGameBtn = document.getElementById("endGameBtn"); // Added end game button
 
-// --- Application & Game State ---
-let latestUsers = [];
-let unreadPrivate = {};
-let currentRoom = "public";
-let myId = null;
-let isTyping = false;
-let typingTimer;
-const TYPING_TIMER_LENGTH = 1500;
+// Room list elements
+const roomList = document.getElementById("roomList");
+const createGameRoomBtn = document.getElementById("createGameBtn");
+const gameRoomsListDiv = document.getElementById("gameRoomsList");
+const noGameRoomsMsg = document.getElementById("noGameRoomsMsg");
 
-// Canvas/Drawing State
-const ctx = gameCanvas.getContext("2d");
+// Mobile Modal Tab elements
+const mobileNavModal = document.getElementById("mobileNavModal");
+const mobileModalNavBtns = document.querySelectorAll(".modal-nav-btn");
+const mobileModalTabContents = document.querySelectorAll(".modal-tab-content");
+const mobileRoomList = document.getElementById("mobileRoomList");
+const mobileCreateGameBtn = document.getElementById("mobileCreateGameBtn");
+const mobileGameRoomsListDiv = document.getElementById("mobileGameRoomsList");
+const mobileNoGameRoomsMsg = document.getElementById("mobileNoGameRoomsMsg");
+const mobileAllUsersList = document.getElementById("mobileAllUsersList");
+const mobileThemeToggleBtn = document.getElementById("mobileThemeToggle");
+const mobileBackgroundOptionsContainer = document.getElementById(
+  "mobileBackgroundOptions"
+);
+const mobileCloseModalBtn = mobileNavModal.querySelector(".close-modal-btn");
+
+// --- Global State ---
+let currentRoom = "global";
+let nickname = "";
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
+let isDrawer = false; // Flag to indicate if current user is the drawer
+let currentWord = "";
+let currentDrawer = null;
+let gameScores = {};
+let userId = null; // To store the unique ID assigned by the server
 
-// --- PREDEFINED BACKGROUNDS (Client-side) ---
-const predefinedBackgrounds = [
-  "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1575&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=1470&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1332&auto=format&fit=crop",
+// Define background images
+const backgrounds = [
+  { name: "None", value: "" },
+  { name: "City", value: "images/city.jpg" },
+  { name: "Forest", value: "images/forest.jpg" },
+  { name: "Space", value: "images/space.jpg" },
+  { name: "Ocean", value: "images/ocean.jpg" },
 ];
 
-// --- Initialization ---
-window.addEventListener("load", () => {
-  const savedTheme = localStorage.getItem("chatTheme") || "light";
-  applyTheme(savedTheme);
-  const savedBackground = localStorage.getItem("chatBackground");
-  if (savedBackground) applyBackground(savedBackground);
-  adjustHeightForKeyboard();
-  populateBackgroundOptions(backgroundOptionsContainer);
-  setupCanvas();
-});
-window.addEventListener("resize", () => {
-  adjustHeightForKeyboard();
-  setupCanvas();
-});
+// --- Utility Functions ---
+function addMessage(msg, type = "other", sender = "") {
+  const item = document.createElement("li");
+  item.classList.add("message-bubble", `${type}-message`);
 
-// --- Event Listeners ---
-input.addEventListener("input", () => {
-  if (!isTyping) {
-    isTyping = true;
-    socket.emit("typing", { room: currentRoom });
+  let content = "";
+  if (sender && type !== "system") {
+    content += `<strong>${sender}:</strong> `;
   }
-  clearTimeout(typingTimer);
-  typingTimer = setTimeout(() => {
-    isTyping = false;
-    socket.emit("stop typing", { room: currentRoom });
-  }, TYPING_TIMER_LENGTH);
-});
+  content += msg;
 
-themeToggleBtn.addEventListener("click", () => {
-  const isDarkMode = document.body.classList.contains("dark-mode");
-  const newTheme = isDarkMode ? "light" : "dark";
-  applyTheme(newTheme);
-  localStorage.setItem("chatTheme", newTheme);
-});
-
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  if (input.value.trim()) {
-    socket.emit("chat message", { room: currentRoom, text: input.value });
-    clearTimeout(typingTimer);
-    isTyping = false;
-    socket.emit("stop typing", { room: currentRoom });
-    input.value = "";
-    setTimeout(() => input.focus(), 10);
-  }
-});
-
-showUsersBtn.onclick = () => {
-  populateBackgroundOptions(backgroundOptionsMobileContainer);
-  allUsersModal.style.display = "flex";
-};
-
-allUsersModal.addEventListener("click", (e) => {
-  if (e.target === allUsersModal) {
-    allUsersModal.style.display = "none";
-  }
-});
-
-mobileModalNav.addEventListener("click", (e) => {
-  if (e.target.tagName !== "BUTTON") return;
-  const tabName = e.target.dataset.tab;
-  document
-    .querySelectorAll(".modal-nav-btn")
-    .forEach((btn) => btn.classList.remove("active"));
-  e.target.classList.add("active");
-  modalTabs.forEach((tab) => {
-    tab.classList.toggle("active", tab.id === `${tabName}Tab`);
-  });
-});
-
-// --- Socket Event Handlers ---
-socket.on("connect", () => {
-  myId = socket.id;
-  showUserModal();
-});
-
-socket.on("typing", ({ name, room }) => {
-  if (room === currentRoom) {
-    typingIndicator.textContent = `${name} is typing...`;
-    typingIndicator.style.opacity = "1";
-  }
-});
-socket.on("stop typing", ({ room }) => {
-  if (room === currentRoom) {
-    typingIndicator.textContent = "";
-    typingIndicator.style.opacity = "0";
-  }
-});
-socket.on("user list", (users) => {
-  latestUsers = users;
-  updateUserList();
-});
-socket.on("room history", (msgs) => {
-  messages.innerHTML = "";
-  msgs.forEach(addMessage);
-});
-socket.on("rate limit", (msg) => displayError(msg));
-socket.on("message was read", ({ room, messageId }) => {
-  if (room === currentRoom) {
-    const msgEl = document.querySelector(
-      `.msg[data-message-id="${messageId}"] .read-receipt`
-    );
-    if (msgEl) {
-      msgEl.textContent = "✓✓";
-      msgEl.classList.add("read");
-    }
-  }
-});
-
-socket.on("chat message", (msg) => {
-  const isGameRoom = currentRoom.startsWith("game-");
-  // Only show message if it's for the current room OR it's a private message notification
-  if (msg.room === currentRoom) {
-    typingIndicator.textContent = "";
-    typingIndicator.style.opacity = "0";
-    addMessage(msg);
-    if (!isGameRoom && msg.room !== "public") {
-      const otherId = msg.id === myId ? msg.to : msg.id;
-      delete unreadPrivate[otherId];
-      updateUserList();
-    }
-  } else if (!isGameRoom && msg.room !== "public" && msg.to === myId) {
-    unreadPrivate[msg.id] = true;
-    updateUserList();
-  }
-});
-
-// --- Core Functions ---
-function showUserModal() {
-  userModal.style.display = "flex";
-  nicknameInput.focus();
-  userForm.onsubmit = (e) => {
-    e.preventDefault();
-    const nickname = nicknameInput.value.trim();
-    const gender = userForm.gender.value;
-    const age = ageInput.value.trim();
-    if (!nickname) {
-      nicknameInput.focus();
-      return;
-    }
-    if (!age || isNaN(age) || age < 18 || age > 99) {
-      ageInput.focus();
-      ageInput.style.borderColor = "var(--error-color)";
-      return;
-    }
-    socket.emit("user info", { nickname, gender, age });
-    userModal.style.display = "none";
-    switchRoom("public", "🌐 Public Chat");
-  };
-}
-
-function addMessage(msg, type = "") {
-  const item = document.createElement("div");
-  item.classList.add("msg");
-  if (msg.messageId) {
-    item.setAttribute("data-message-id", msg.messageId);
-  }
-
-  const isMe = msg.id && msg.id === myId;
-  const isSystem = type === "system" || msg.name === "System";
-  if (isSystem) item.classList.add("system");
-  else item.classList.add(isMe ? "me" : "other");
-
-  const readReceiptHTML =
-    isMe && currentRoom !== "public" && !currentRoom.startsWith("game-")
-      ? `<span class="read-receipt">${
-          msg.status === "read" ? "✓✓" : "✓"
-        }</span>`
-      : "";
-
-  const nameHTML = isSystem
-    ? ""
-    : `<span style="color:${getGenderColor(msg.gender)};">${
-        msg.name
-      }${getGenderSymbol(msg.gender)}${msg.age ? " · " + msg.age : ""}</span>`;
-
-  item.innerHTML = `<div class="bubble">${nameHTML}${msg.text}${readReceiptHTML}</div>`;
+  item.innerHTML = content;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
-
-  if (
-    !isMe &&
-    !isSystem &&
-    currentRoom !== "public" &&
-    !currentRoom.startsWith("game-")
-  ) {
-    socket.emit("message read", {
-      room: currentRoom,
-      messageId: msg.messageId,
-    });
-  }
 }
 
-function updateUserList() {
-  const processList = (container) => {
-    container.innerHTML = "";
-    const publicBtn = document.createElement("div");
-    publicBtn.className = "user";
-    publicBtn.textContent = "🌐 Public Room";
-    publicBtn.onclick = () => {
-      switchRoom("public", "🌐 Public Chat");
-      if (allUsersModal.style.display === "flex")
-        allUsersModal.style.display = "none";
-    };
-    container.appendChild(publicBtn);
-
-    latestUsers.forEach((user) => {
-      if (user.id === myId) return;
-      const div = document.createElement("div");
-      div.className = "user";
-      div.innerHTML =
-        `<span style="color:${getGenderColor(user.gender)};">${
-          user.name
-        }${getGenderSymbol(user.gender)}${
-          user.age ? " · " + user.age : ""
-        }</span>` +
-        (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
-      div.onclick = () => {
-        const privateRoomName = [myId, user.id].sort().join("-");
-        switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
-        delete unreadPrivate[user.id];
-        updateUserList();
-        if (allUsersModal.style.display === "flex")
-          allUsersModal.style.display = "none";
-      };
-      container.appendChild(div);
-    });
-  };
-  processList(userList); // For desktop sidebar
-  processList(allUsersList); // For mobile modal
-}
-
-function switchRoom(roomName, title) {
-  if (currentRoom === roomName) return;
-
-  if (currentRoom.startsWith("game-")) {
-    endGame();
-  }
-
-  currentRoom = roomName;
-  roomTitle.textContent = title;
-  messages.innerHTML = "";
-  typingIndicator.textContent = "";
-  typingIndicator.style.opacity = "0";
-
-  if (!roomName.startsWith("game-")) {
-    socket.emit("join room", currentRoom);
-    endGame();
-  } else {
-    gameContainer.style.display = "flex";
-  }
-}
-
-// --- Helper & UI Functions ---
-function getGenderSymbol(gender) {
-  return gender === "female" ? "♀" : "♂";
-}
-function getGenderColor(gender) {
-  return gender === "female" ? "#e75480" : "#3b82f6";
-}
-function adjustHeightForKeyboard() {
-  if (window.innerWidth <= 768) {
-    document.documentElement.style.setProperty(
-      "--vh",
-      `${window.innerHeight * 0.01}px`
-    );
-  }
-}
-function displayError(msg) {
-  errorMessage.textContent = msg;
-  errorMessage.style.opacity = "1";
+function displayErrorMessage(message) {
+  errorMessage.textContent = message;
   setTimeout(() => {
     errorMessage.textContent = "";
-    errorMessage.style.opacity = "0";
   }, 3000);
 }
-function applyTheme(theme) {
-  if (theme === "dark") {
-    document.body.classList.add("dark-mode");
-    themeToggleBtn.textContent = "☀️";
-  } else {
-    document.body.classList.remove("dark-mode");
-    themeToggleBtn.textContent = "🌙";
-  }
+
+function updateRoomTitle(roomName) {
+  roomTitle.textContent = roomName;
 }
-function applyBackground(url) {
-  if (url) {
-    messages.style.backgroundImage = `url(${url})`;
-    messages.classList.add("has-background");
-    localStorage.setItem("chatBackground", url);
-  } else {
-    messages.style.backgroundImage = "none";
-    messages.classList.remove("has-background");
-    localStorage.removeItem("chatBackground");
-  }
-}
-function populateBackgroundOptions(container) {
-  if (!container) return;
-  container.innerHTML = "";
-  const defaultOption = document.createElement("button");
-  defaultOption.className = "background-option-default";
-  defaultOption.textContent = "Default";
-  defaultOption.onclick = () => applyBackground(null);
-  container.appendChild(defaultOption);
-  predefinedBackgrounds.forEach((url) => {
-    const option = document.createElement("div");
-    option.className = "background-option";
-    option.style.backgroundImage = `url(${url})`;
-    option.onclick = () => applyBackground(url);
-    container.appendChild(option);
+
+function generateBackgroundOptions(container, isMobile = false) {
+  container.innerHTML = ""; // Clear existing options
+  backgrounds.forEach((bg) => {
+    const optionDiv = document.createElement("div");
+    optionDiv.classList.add("background-option");
+    optionDiv.title = bg.name;
+    optionDiv.dataset.value = bg.value;
+
+    if (bg.value) {
+      optionDiv.style.backgroundImage = `url(${bg.value})`;
+    } else {
+      optionDiv.style.backgroundColor = "transparent"; // For 'None'
+      optionDiv.style.border = "1px dashed var(--border-color)";
+      optionDiv.textContent = "None";
+      optionDiv.style.display = "flex";
+      optionDiv.style.justifyContent = "center";
+      optionDiv.style.alignItems = "center";
+      optionDiv.style.fontSize = "0.8em";
+      optionDiv.style.color = "var(--text-color)";
+    }
+
+    optionDiv.addEventListener("click", () => {
+      socket.emit("room:background", {
+        roomId: currentRoom,
+        background: bg.value,
+      });
+      // Visually update selection for both desktop and mobile
+      document
+        .querySelectorAll(".background-option")
+        .forEach((opt) => opt.classList.remove("selected"));
+      optionDiv.classList.add("selected");
+    });
+    container.appendChild(optionDiv);
   });
 }
 
-// --- GAME LOGIC ---
-
-// Game Socket Handlers
-socket.on("game:roomsList", (rooms) => {
-  updateGameRoomList(rooms);
-});
-
-socket.on("game:joined", (roomData) => {
-  switchRoom(roomData.id, `🎮 ${roomData.name}`);
-  if (allUsersModal.style.display === "flex") {
-    allUsersModal.style.display = "none";
+function applyBackground(backgroundUrl) {
+  if (backgroundUrl) {
+    messages.style.backgroundImage = `url(${backgroundUrl})`;
+    messages.style.backgroundSize = "cover";
+    messages.style.backgroundPosition = "center";
+  } else {
+    messages.style.backgroundImage = "none";
   }
-});
-
-socket.on("game:state", (state) => {
-  if (!currentRoom.startsWith("game-")) return;
-
-  gameContainer.style.display = "flex";
-
-  // Pre-game logic (lobby)
-  if (!state.isRoundActive) {
-    drawingTools.style.display = "none";
-    gameCanvas.style.cursor = "not-allowed";
-
-    if (state.creatorId === myId) {
-      if (state.players && state.players.length >= 2) {
-        startGameBtn.style.display = "block";
-        startGameBtn.disabled = false;
-        gameInfo.textContent = 'You are the host. Press "Start Game" to begin!';
-      } else {
-        startGameBtn.style.display = "none";
-        gameInfo.textContent =
-          "Waiting for at least one more player to join...";
-      }
-    } else {
-      startGameBtn.style.display = "none";
-      gameInfo.textContent = "Waiting for the host to start the game...";
-    }
-  }
-  // Active game round logic
-  else {
-    startGameBtn.style.display = "none";
-    if (state.drawer.id === myId) {
-      gameInfo.textContent = "Your turn to draw!";
-      drawingTools.style.display = "flex";
-      gameCanvas.style.cursor = "crosshair";
-    } else {
-      gameInfo.textContent = `${state.drawer.name} is drawing...`;
-      drawingTools.style.display = "none";
-      gameCanvas.style.cursor = "not-allowed";
-    }
-  }
-});
-
-socket.on("game:word_prompt", (word) => {
-  gameInfo.textContent = `Your turn! Draw the word: ${word}`;
-});
-
-socket.on("game:message", (text) => {
-  addMessage({ text }, "system");
-});
-
-socket.on("game:correct_guess", ({ guesser, word, scores }) => {
-  addMessage(
-    { text: `${guesser.name} guessed it! The word was "${word}".` },
-    "system"
-  );
-});
-
-socket.on("game:end", (text) => {
-  addMessage({ text }, "system");
-  endGame(false); // Don't switch rooms, just end the game UI
-});
-
-socket.on("game:draw", (data) => {
-  drawLine(data.x0, data.y0, data.x1, data.y1, false);
-});
-
-socket.on("game:clear_canvas", () => {
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-});
-
-// Game UI Event Listeners
-const handleCreateGameRoom = () => {
-  roomNameInput.value = "My Doodle Room";
-  createGameModal.style.display = "flex";
-  roomNameInput.focus();
-};
-createGameRoomBtnDesktop.addEventListener("click", handleCreateGameRoom);
-createGameRoomBtnMobile.addEventListener("click", handleCreateGameRoom);
-
-createGameForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const roomName = roomNameInput.value.trim();
-  if (roomName) {
-    socket.emit("game:create", roomName);
-    createGameModal.style.display = "none";
-  }
-});
-
-cancelCreateGameBtn.addEventListener("click", () => {
-  createGameModal.style.display = "none";
-});
-
-createGameModal.addEventListener("click", (e) => {
-  if (e.target === createGameModal) {
-    createGameModal.style.display = "none";
-  }
-});
-
-startGameBtn.addEventListener("click", () => {
-  if (currentRoom.startsWith("game-")) {
-    socket.emit("game:start", currentRoom);
-    startGameBtn.disabled = true;
-  }
-});
-
-clearCanvasBtn.addEventListener("click", () => {
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  socket.emit("game:clear_canvas", currentRoom);
-});
-
-function updateGameRoomList(rooms) {
-  const renderList = (container) => {
-    container.innerHTML = "";
-    if (rooms.length === 0) {
-      container.innerHTML = '<p class="no-rooms-msg">No active game rooms.</p>';
-      return;
-    }
-    rooms.forEach((room) => {
-      const item = document.createElement("div");
-      item.className = "game-room-item";
-
-      const roomInfo = document.createElement("span");
-      roomInfo.title = `${room.name} (by ${room.creatorName})`;
-      roomInfo.textContent = `${room.name} (${room.players.length}p)`;
-
-      const joinBtn = document.createElement("button");
-      joinBtn.textContent = "Join";
-      joinBtn.onclick = () => {
-        socket.emit("game:join", room.id);
-      };
-
-      item.appendChild(roomInfo);
-      item.appendChild(joinBtn);
-      container.appendChild(item);
-    });
-  };
-  renderList(gameRoomListDesktop);
-  renderList(gameRoomListMobile);
 }
 
-// Canvas Functions
-function setupCanvas() {
-  const dpr = window.devicePixelRatio || 1;
-  const rect = gameCanvas.getBoundingClientRect();
-  gameCanvas.width = rect.width * dpr;
-  gameCanvas.height = rect.height * dpr;
-  ctx.scale(dpr, dpr);
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.lineWidth = 5;
+function updateGameInfo() {
+  gameInfo.innerHTML = ""; // Clear previous info
+
+  if (!currentDrawer && Object.keys(gameScores).length === 0) {
+    gameInfo.textContent = "Waiting for game to start...";
+    return;
+  }
+
+  let infoHtml = "";
+  if (currentDrawer) {
+    infoHtml += `<div><strong>Drawer:</strong> ${currentDrawer.name}</div>`;
+    infoHtml += `<div><strong>Word:</strong> ${
+      isDrawer ? currentWord : currentWord.replace(/./g, "_ ")
+    }</div>`;
+  }
+
+  if (Object.keys(gameScores).length > 0) {
+    infoHtml += `<div><strong>Scores:</strong></div><ul>`;
+    for (const [id, score] of Object.entries(gameScores)) {
+      infoHtml += `<li>${score.name}: ${score.score}</li>`;
+    }
+    infoHtml += `</ul>`;
+  }
+
+  gameInfo.innerHTML = infoHtml;
+}
+
+// --- Game Drawing Functions ---
+function resizeCanvas() {
+  // Set canvas display size to actual size
+  gameCanvas.width = gameCanvas.offsetWidth;
+  gameCanvas.height = gameCanvas.offsetHeight;
+
+  // If there are existing drawings, redraw them (needs server-side storage of drawing history)
+  // For now, if canvas resizes, drawing will be cleared.
+  // A more robust solution would involve storing drawing commands and replaying them.
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 }
 
 function drawLine(x0, y0, x1, y1, emit) {
   ctx.beginPath();
   ctx.moveTo(x0, y0);
   ctx.lineTo(x1, y1);
-  ctx.strokeStyle = document.body.classList.contains("dark-mode")
-    ? "#FFFFFF"
-    : "#000000";
+  ctx.strokeStyle = colorPicker.value;
+  ctx.lineWidth = strokeWidthInput.value;
+  ctx.lineCap = "round";
   ctx.stroke();
   ctx.closePath();
-  if (!emit) return;
-  socket.emit("game:draw", { room: currentRoom, data: { x0, y0, x1, y1 } });
+
+  if (emit && isDrawer) {
+    socket.emit("game:draw", {
+      roomId: currentRoom,
+      x0,
+      y0,
+      x1,
+      y1,
+      color: colorPicker.value,
+      width: strokeWidthInput.value,
+    });
+  }
 }
 
-function handleStart(e) {
-  if (gameCanvas.style.cursor === "crosshair") {
-    isDrawing = true;
-    const pos = getMousePos(e);
-    [lastX, lastY] = [pos.x, pos.y];
-  }
-}
-function handleMove(e) {
-  if (isDrawing) {
-    e.preventDefault();
-    const pos = getMousePos(e);
-    drawLine(lastX, lastY, pos.x, pos.y, true);
-    [lastX, lastY] = [pos.x, pos.y];
-  }
-}
-function handleEnd() {
-  isDrawing = false;
-}
 function getMousePos(e) {
   const rect = gameCanvas.getBoundingClientRect();
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -590,23 +228,432 @@ function getMousePos(e) {
     y: clientY - rect.top,
   };
 }
-// Mouse events
+
+function handleStart(e) {
+  if (isDrawer && gameCanvas.style.cursor === "crosshair") {
+    isDrawing = true;
+    const pos = getMousePos(e);
+    [lastX, lastY] = [pos.x, pos.y];
+  }
+}
+
+function handleMove(e) {
+  if (isDrawing) {
+    e.preventDefault(); // Prevent scrolling on touch devices
+    const pos = getMousePos(e);
+    drawLine(lastX, lastY, pos.x, pos.y, true);
+    [lastX, lastY] = [pos.x, pos.y];
+  }
+}
+
+function handleEnd() {
+  isDrawing = false;
+}
+
+// --- Event Listeners ---
+
+// Initial user setup
+userForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  nickname = nicknameInput.value.trim();
+  const age = ageInput.value;
+  const gender = genderInput.value;
+
+  if (nickname && age && gender) {
+    socket.emit("user:setProfile", { name: nickname, age, gender });
+    userModal.classList.remove("active");
+  } else {
+    displayErrorMessage("Please fill in all profile details.");
+  }
+});
+
+// Send message
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (input.value.trim()) {
+    socket.emit("chat:message", { roomId: currentRoom, msg: input.value });
+    input.value = "";
+  }
+});
+
+// Theme toggle
+themeToggleBtn.addEventListener("click", () => {
+  document.body.classList.toggle("dark-theme");
+  localStorage.setItem(
+    "theme",
+    document.body.classList.contains("dark-theme") ? "dark" : "light"
+  );
+});
+
+mobileThemeToggleBtn.addEventListener("click", () => {
+  document.body.classList.toggle("dark-theme");
+  localStorage.setItem(
+    "theme",
+    document.body.classList.contains("dark-theme") ? "dark" : "light"
+  );
+});
+
+// Show all users modal (mobile)
+showUsersBtn.addEventListener("click", () => {
+  mobileNavModal.classList.add("active");
+  // Ensure the users tab is active when opened via showUsersBtn
+  mobileModalNavBtns.forEach((btn) => btn.classList.remove("active"));
+  document
+    .querySelector('.modal-nav-btn[data-tab="users"]')
+    .classList.add("active");
+  mobileModalTabContents.forEach((tab) => tab.classList.remove("active"));
+  document.getElementById("mobileUsersTab").classList.add("active");
+});
+
+// Close modals
+document.querySelectorAll(".close-modal-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    btn.closest(".modal").classList.remove("active");
+  });
+});
+
+// Create Game Room
+createGameRoomBtn.addEventListener("click", () => {
+  createGameModal.classList.add("active");
+});
+mobileCreateGameBtn.addEventListener("click", () => {
+  createGameModal.classList.add("active");
+  mobileNavModal.classList.remove("active"); // Close mobile nav modal
+});
+
+cancelCreateGameBtn.addEventListener("click", () => {
+  createGameModal.classList.remove("active");
+});
+
+createGameForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const roomName = roomNameInput.value.trim();
+  if (roomName) {
+    socket.emit("game:createRoom", { roomName });
+    createGameModal.classList.remove("active");
+    roomNameInput.value = "";
+  }
+});
+
+// Start Game
+startGameBtn.addEventListener("click", () => {
+  socket.emit("game:start", { roomId: currentRoom });
+});
+mobileStartGameBtn.addEventListener("click", () => {
+  socket.emit("game:start", { roomId: currentRoom });
+  mobileNavModal.classList.remove("active"); // Close mobile nav modal
+});
+
+// End Game
+endGameBtn.addEventListener("click", () => {
+  if (confirm("Are you sure you want to end the game?")) {
+    socket.emit("game:end", { roomId: currentRoom });
+  }
+});
+
+// Canvas drawing event listeners
 gameCanvas.addEventListener("mousedown", handleStart);
 gameCanvas.addEventListener("mousemove", handleMove);
 gameCanvas.addEventListener("mouseup", handleEnd);
-gameCanvas.addEventListener("mouseout", handleEnd);
-// Touch events
-gameCanvas.addEventListener("touchstart", handleStart);
-gameCanvas.addEventListener("touchmove", handleMove);
-gameCanvas.addEventListener("touchend", handleEnd);
+gameCanvas.addEventListener("mouseout", handleEnd); // End drawing if mouse leaves canvas
 
-function endGame(hideContainer = true) {
-  if (hideContainer) {
-    gameContainer.style.display = "none";
+gameCanvas.addEventListener("touchstart", handleStart, { passive: false });
+gameCanvas.addEventListener("touchmove", handleMove, { passive: false });
+gameCanvas.addEventListener("touchend", handleEnd);
+gameCanvas.addEventListener("touchcancel", handleEnd); // Handle touches ending outside canvas
+
+clearCanvasBtn.addEventListener("click", () => {
+  if (isDrawer) {
+    socket.emit("game:clearCanvas", { roomId: currentRoom });
   }
-  gameInfo.textContent = "";
+});
+
+// Initial canvas resize
+window.addEventListener("resize", resizeCanvas);
+
+// Initialize background options
+generateBackgroundOptions(backgroundOptionsContainer);
+generateBackgroundOptions(mobileBackgroundOptionsContainer, true);
+
+// Check for saved theme
+if (localStorage.getItem("theme") === "dark") {
+  document.body.classList.add("dark-theme");
+}
+
+// Mobile modal tab navigation
+mobileModalNavBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    mobileModalNavBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const targetTab = btn.dataset.tab;
+    mobileModalTabContents.forEach((content) => {
+      if (
+        content.id ===
+        `mobile${targetTab.charAt(0).toUpperCase() + targetTab.slice(1)}Tab`
+      ) {
+        content.classList.add("active");
+      } else {
+        content.classList.remove("active");
+      }
+    });
+  });
+});
+
+// --- Socket.IO Event Handlers ---
+
+socket.on("connect", () => {
+  console.log("Connected to server");
+  // Show user modal if nickname is not set
+  if (!nickname) {
+    userModal.classList.add("active");
+  }
+  userId = socket.id; // Store the assigned socket ID
+});
+
+socket.on("user:profileSet", (user) => {
+  nickname = user.name;
+  userId = user.id; // Ensure client's userId is updated with the persistent ID from server
+  console.log("Profile set:", user);
+  addMessage(`Welcome, ${user.name}!`, "system");
+});
+
+socket.on("chat:message", (data) => {
+  const isOwn = data.senderId === userId;
+  addMessage(
+    data.msg,
+    isOwn ? "own" : "other",
+    isOwn ? "You" : data.senderName
+  );
+});
+
+socket.on("chat:history", (messages) => {
+  messages.innerHTML = ""; // Clear existing messages
+  messages.forEach((data) => {
+    const isOwn = data.senderId === userId;
+    addMessage(
+      data.msg,
+      isOwn ? "own" : "other",
+      isOwn ? "You" : data.senderName
+    );
+  });
+});
+
+socket.on("user:list", (users) => {
+  allUsersList.innerHTML = "";
+  mobileAllUsersList.innerHTML = "";
+  for (const id in users) {
+    const user = users[id];
+    const listItem = document.createElement("li");
+    listItem.textContent = `${user.name} (Age: ${user.age}, Gender: ${user.gender})`;
+    allUsersList.appendChild(listItem);
+
+    const mobileListItem = listItem.cloneNode(true);
+    mobileAllUsersList.appendChild(mobileListItem);
+  }
+});
+
+socket.on("typing:start", (typerNickname) => {
+  if (typerNickname !== nickname) {
+    typingIndicator.textContent = `${typerNickname} is typing...`;
+  }
+});
+
+socket.on("typing:stop", () => {
+  typingIndicator.textContent = "";
+});
+
+socket.on("room:joined", (room) => {
+  currentRoom = room.id;
+  updateRoomTitle(room.name);
+  addMessage(`You joined "${room.name}".`, "system");
+  messages.innerHTML = ""; // Clear messages when joining a new room
+  applyBackground(room.background);
+
+  // Hide chat area, show game area if it's a game room
+  if (room.isGameRoom) {
+    gameContainer.style.display = "flex";
+    messages.style.display = "none";
+    input.placeholder = "Type your guess...";
+    resizeCanvas(); // Ensure canvas is correctly sized on room join
+  } else {
+    gameContainer.style.display = "none";
+    drawingTools.style.display = "none"; // Hide tools if not in game room
+    gameCanvas.style.cursor = "default";
+    messages.style.display = "flex";
+    input.placeholder = "Type your message...";
+  }
+
+  // Update room list active state
+  document.querySelectorAll(".room-item").forEach((item) => {
+    item.classList.remove("active");
+    if (item.dataset.roomId === room.id) {
+      item.classList.add("active");
+    }
+  });
+});
+
+socket.on("room:left", (roomName) => {
+  addMessage(`You left "${roomName}".`, "system");
+  currentRoom = "global";
+  updateRoomTitle("Global Chat");
+  messages.innerHTML = ""; // Clear messages
+  applyBackground(""); // Remove background
+  gameContainer.style.display = "none"; // Hide game if leaving a game room
   drawingTools.style.display = "none";
   gameCanvas.style.cursor = "default";
+  messages.style.display = "flex";
+  input.placeholder = "Type your message...";
+
+  // Reset active room in UI
+  document.querySelectorAll(".room-item").forEach((item) => {
+    item.classList.remove("active");
+    if (item.dataset.roomId === "global") {
+      item.classList.add("active");
+    }
+  });
+});
+
+socket.on("room:backgroundUpdated", ({ roomId, background }) => {
+  if (currentRoom === roomId) {
+    applyBackground(background);
+    // Visually update selected background option
+    document.querySelectorAll(".background-option").forEach((opt) => {
+      opt.classList.remove("selected");
+      if (opt.dataset.value === background) {
+        opt.classList.add("selected");
+      }
+    });
+  }
+});
+
+socket.on("game:roomsList", (rooms) => {
+  gameRoomsListDiv.innerHTML = "<h4>Active Game Rooms</h4>";
+  mobileGameRoomsListDiv.innerHTML = "<h4>Active Game Rooms</h4>";
+
+  if (Object.keys(rooms).length === 0) {
+    gameRoomsListDiv.appendChild(noGameRoomsMsg);
+    mobileGameRoomsListDiv.appendChild(mobileNoGameRoomsMsg);
+  } else {
+    const ul = document.createElement("ul");
+    const mobileUl = document.createElement("ul");
+    for (const roomId in rooms) {
+      const room = rooms[roomId];
+      const li = document.createElement("li");
+      li.classList.add("game-room-item");
+      li.innerHTML = `<span>${room.name} (${room.players.length}/${room.maxPlayers})</span>`;
+      if (!room.isGameActive) {
+        const joinBtn = document.createElement("button");
+        joinBtn.textContent = "Join";
+        joinBtn.onclick = () => socket.emit("room:join", { roomId: room.id });
+        li.appendChild(joinBtn);
+      } else {
+        const activeSpan = document.createElement("span");
+        activeSpan.textContent = " (Game Active)";
+        activeSpan.style.color = "var(--secondary-accent)";
+        li.appendChild(activeSpan);
+      }
+      ul.appendChild(li);
+
+      const mobileLi = li.cloneNode(true);
+      mobileLi.querySelector("button")?.addEventListener("click", () => {
+        socket.emit("room:join", { roomId: room.id });
+        mobileNavModal.classList.remove("active"); // Close modal on join
+      });
+      mobileUl.appendChild(mobileLi);
+    }
+    gameRoomsListDiv.appendChild(ul);
+    mobileGameRoomsListDiv.appendChild(mobileUl);
+  }
+});
+
+socket.on("game:state", (state) => {
+  console.log("Game State:", state);
+  isDrawer = state.drawer && state.drawer.id === userId;
+  currentDrawer = state.drawer;
+  currentWord = state.word || ""; // Word for the drawer
+  gameScores = state.scores || {}; // Update scores
+
+  if (state.isRoundActive) {
+    gameCanvas.style.cursor = isDrawer ? "crosshair" : "not-allowed";
+    drawingTools.style.display = isDrawer ? "flex" : "none";
+    input.placeholder = isDrawer ? "You are drawing!" : "Type your guess...";
+    startGameBtn.style.display = "none"; // Hide start button when game is active
+    mobileStartGameBtn.style.display = "none";
+    endGameBtn.style.display =
+      state.creatorId === userId && state.isRoundActive
+        ? "inline-block"
+        : "none"; // Show end game if creator
+  } else {
+    gameCanvas.style.cursor = "default";
+    drawingTools.style.display = "none";
+    input.placeholder = "Type your message or guess...";
+    // Only show start button if user is creator and game is not active
+    startGameBtn.style.display =
+      state.creatorId === userId ? "inline-block" : "none";
+    mobileStartGameBtn.style.display =
+      state.creatorId === userId ? "inline-block" : "none";
+    endGameBtn.style.display = "none";
+  }
+  updateGameInfo(); // Update game info display
+});
+
+socket.on("game:draw", (data) => {
+  // Only draw if not the drawer (to avoid self-redrawing)
+  if (data.senderId !== userId) {
+    ctx.strokeStyle = data.color;
+    ctx.lineWidth = data.width;
+    drawLine(data.x0, data.y0, data.x1, data.y1, false); // Do not re-emit
+  }
+});
+
+socket.on("game:clearCanvas", () => {
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+});
+
+socket.on("game:message", (message) => {
+  addMessage(message, "system");
+});
+
+socket.on("game:end", () => {
+  addMessage("Game ended!", "system");
+  // Reset game specific UI
+  gameContainer.style.display = "none";
+  drawingTools.style.display = "none";
+  gameCanvas.style.cursor = "default";
+  messages.style.display = "flex"; // Show chat messages again
+  input.placeholder = "Type your message...";
   startGameBtn.style.display = "none";
-}
+  mobileStartGameBtn.style.display = "none";
+  endGameBtn.style.display = "none";
+  isDrawer = false;
+  currentDrawer = null;
+  currentWord = "";
+  gameScores = {};
+  updateGameInfo(); // Clear game info
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height); // Clear canvas
+});
+
+socket.on("error", (message) => {
+  displayErrorMessage(message);
+});
+
+// Populate static room list
+document.getElementById("roomList").addEventListener("click", (e) => {
+  if (e.target.classList.contains("room-item")) {
+    const roomId = e.target.dataset.roomId;
+    if (roomId && roomId !== currentRoom) {
+      socket.emit("room:join", { roomId });
+    }
+  }
+});
+
+document.getElementById("mobileRoomList").addEventListener("click", (e) => {
+  if (e.target.classList.contains("room-item")) {
+    const roomId = e.target.dataset.roomId;
+    if (roomId && roomId !== currentRoom) {
+      socket.emit("room:join", { roomId });
+      mobileNavModal.classList.remove("active"); // Close modal on join
+    }
+  }
+});
