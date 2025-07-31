@@ -59,7 +59,7 @@ const stopGameBtnMobile = document.getElementById("stopGameBtnMobile");
 // --- Application & Game State ---
 let latestUsers = [];
 let unreadPrivate = {};
-let currentRoom = null; // FIX: Initialize currentRoom to null
+let currentRoom = null;
 let myId = null;
 let isTyping = false;
 let typingTimer;
@@ -624,7 +624,7 @@ function setupCanvas() {
   ctx.lineWidth = 5;
 }
 
-function drawLine(x0, y0, x1, y1, emit) {
+function drawLine(x0, y0, x1, y1, emit = false) {
   ctx.beginPath();
   ctx.moveTo(x0, y0);
   ctx.lineTo(x1, y1);
@@ -653,14 +653,18 @@ function handleStart(e) {
     [lastX, lastY] = [pos.x, pos.y];
   }
 }
+
+// FIX: Corrected handleMove to draw locally in real-time
 function handleMove(e) {
-  if (isDrawing) {
-    e.preventDefault();
-    const pos = getMousePos(e);
-    drawLine(lastX, lastY, pos.x, pos.y, true);
-    [lastX, lastY] = [pos.x, pos.y];
-  }
+  if (!isDrawing) return;
+
+  e.preventDefault();
+  const pos = getMousePos(e);
+  // Draw the line on the local canvas and emit the data
+  drawLine(lastX, lastY, pos.x, pos.y, true);
+  [lastX, lastY] = [pos.x, pos.y];
 }
+
 function handleEnd() {
   isDrawing = false;
 }
