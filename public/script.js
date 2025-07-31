@@ -42,7 +42,7 @@ const gameCanvas = document.getElementById("gameCanvas");
 const gameInfo = document.getElementById("gameInfo");
 const drawingTools = document.getElementById("drawingTools");
 const clearCanvasBtn = document.getElementById("clearCanvasBtn");
-const gameOverlayMessage = document.getElementById("gameOverlayMessage"); // New element
+const gameOverlayMessage = document.getElementById("gameOverlayMessage");
 const createGameRoomBtnDesktop = document.getElementById(
   "createGameRoomBtnDesktop"
 );
@@ -59,7 +59,7 @@ const stopGameBtnMobile = document.getElementById("stopGameBtnMobile");
 // --- Application & Game State ---
 let latestUsers = [];
 let unreadPrivate = {};
-let currentRoom = "public";
+let currentRoom = null; // FIX: Initialize currentRoom to null
 let myId = null;
 let isTyping = false;
 let typingTimer;
@@ -71,7 +71,7 @@ let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
 let currentGameState = {};
-let overlayTimer; // Timer for the overlay message
+let overlayTimer;
 
 // --- PREDEFINED BACKGROUNDS (Client-side) ---
 const predefinedBackgrounds = [
@@ -323,10 +323,9 @@ function updateUserList() {
 function switchRoom(roomName, title) {
   if (currentRoom === roomName) return;
 
-  // If leaving a game room, notify the server
-  if (currentRoom.startsWith("game-")) {
+  if (currentRoom && currentRoom.startsWith("game-")) {
     socket.emit("game:leave", currentRoom);
-    endGame(); // Clean up game UI immediately
+    endGame();
   }
 
   currentRoom = roomName;
@@ -339,9 +338,9 @@ function switchRoom(roomName, title) {
     gameContainer.style.display = "flex";
   } else {
     socket.emit("join room", currentRoom);
-    endGame(); // Ensure game UI is hidden when switching to a non-game room
+    endGame();
   }
-  updateGameButtonVisibility({}); // Reset buttons on room switch
+  updateGameButtonVisibility({});
 }
 
 // --- Helper & UI Functions ---
@@ -406,19 +405,16 @@ function populateBackgroundOptions(container) {
 
 // --- GAME LOGIC ---
 
-// New function to show temporary overlay messages
 function showGameOverlayMessage(text, duration = 2500) {
   if (!gameOverlayMessage) return;
   gameOverlayMessage.textContent = text;
   gameOverlayMessage.classList.add("visible");
-
   clearTimeout(overlayTimer);
   overlayTimer = setTimeout(() => {
     gameOverlayMessage.classList.remove("visible");
   }, duration);
 }
 
-// Game Socket Handlers
 socket.on("game:roomsList", updateGameRoomList);
 socket.on("game:joined", (roomData) => {
   switchRoom(roomData.id, `🎮 ${roomData.name}`);
@@ -431,7 +427,6 @@ socket.on("game:state", (state) => {
   currentGameState = state;
   gameContainer.style.display = "flex";
   updateGameButtonVisibility(state);
-
   if (state.isRoundActive) {
     const isDrawer = state.drawer && state.drawer.id === myId;
     gameInfo.textContent = isDrawer
@@ -509,7 +504,6 @@ socket.on("game:clear_canvas", () =>
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height)
 );
 
-// Game UI Event Listeners
 function handleCreateGameRoom() {
   createGameModal.style.display = "flex";
   roomNameInput.focus();
@@ -555,8 +549,7 @@ clearCanvasBtn.addEventListener("click", () => {
 function updateGameButtonVisibility(state) {
   const isGameActive = state && state.isRoundActive;
   const isCreator = state && state.creatorId === myId;
-  const isGameRoom = currentRoom.startsWith("game-");
-
+  const isGameRoom = currentRoom && currentRoom.startsWith("game-");
   startGameBtn.style.display =
     isGameRoom && isCreator && !isGameActive ? "block" : "none";
   stopGameBtn.style.display =
@@ -565,7 +558,6 @@ function updateGameButtonVisibility(state) {
     isGameRoom && isCreator && !isGameActive ? "block" : "none";
   stopGameBtnMobile.style.display =
     isGameRoom && isCreator && isGameActive ? "block" : "none";
-
   if (state && state.players) {
     const canStart = state.players.length >= 2;
     startGameBtn.disabled = !canStart;
