@@ -21,6 +21,12 @@ const ageInput = document.getElementById("ageInput");
 const allUsersModal = document.getElementById("allUsersModal");
 const allUsersList = document.getElementById("allUsersList");
 
+// New Game Modal Elements
+const createGameModal = document.getElementById("createGameModal");
+const createGameForm = document.getElementById("createGameForm");
+const roomNameInput = document.getElementById("roomNameInput");
+const cancelCreateGameBtn = document.getElementById("cancelCreateGameBtn");
+
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
 const modalTabs = document.querySelectorAll(".modal-tab-content");
@@ -302,9 +308,8 @@ function updateUserList() {
 function switchRoom(roomName, title) {
   if (currentRoom === roomName) return;
 
-  // Leave the old room if it's a game room
   if (currentRoom.startsWith("game-")) {
-    endGame(); // Clean up game UI
+    endGame();
   }
 
   currentRoom = roomName;
@@ -313,13 +318,10 @@ function switchRoom(roomName, title) {
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
 
-  // Only emit join room for non-game rooms, as game room joining is handled separately
   if (!roomName.startsWith("game-")) {
     socket.emit("join room", currentRoom);
     endGame();
-    startGameBtn.style.display = "none";
   } else {
-    // We are in a game room, show the game container
     gameContainer.style.display = "flex";
   }
 }
@@ -399,18 +401,33 @@ socket.on("game:joined", (roomData) => {
 });
 
 socket.on("game:state", (state) => {
+  if (!currentRoom.startsWith("game-")) return;
+
   gameContainer.style.display = "flex";
 
-  // Show/hide start button for creator
-  if (state.creatorId === myId && !state.isRoundActive) {
-    startGameBtn.style.display = "block";
-    startGameBtn.disabled = false;
-    gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
-  } else {
-    startGameBtn.style.display = "none";
-  }
+  // Pre-game logic (lobby)
+  if (!state.isRoundActive) {
+    drawingTools.style.display = "none";
+    gameCanvas.style.cursor = "not-allowed";
 
-  if (state.isRoundActive) {
+    if (state.creatorId === myId) {
+      if (state.players && state.players.length >= 2) {
+        startGameBtn.style.display = "block";
+        startGameBtn.disabled = false;
+        gameInfo.textContent = 'You are the host. Press "Start Game" to begin!';
+      } else {
+        startGameBtn.style.display = "none";
+        gameInfo.textContent =
+          "Waiting for at least one more player to join...";
+      }
+    } else {
+      startGameBtn.style.display = "none";
+      gameInfo.textContent = "Waiting for the host to start the game...";
+    }
+  }
+  // Active game round logic
+  else {
+    startGameBtn.style.display = "none";
     if (state.drawer.id === myId) {
       gameInfo.textContent = "Your turn to draw!";
       drawingTools.style.display = "flex";
@@ -433,7 +450,7 @@ socket.on("game:message", (text) => {
 
 socket.on("game:correct_guess", ({ guesser, word, scores }) => {
   addMessage(
-    { text: `${guesser.name} guessed the word correctly! It was "${word}".` },
+    { text: `${guesser.name} guessed it! The word was "${word}".` },
     "system"
   );
 });
@@ -441,8 +458,6 @@ socket.on("game:correct_guess", ({ guesser, word, scores }) => {
 socket.on("game:end", (text) => {
   addMessage({ text }, "system");
   endGame(false); // Don't switch rooms, just end the game UI
-  startGameBtn.style.display = "block";
-  startGameBtn.disabled = false;
 });
 
 socket.on("game:draw", (data) => {
@@ -455,19 +470,36 @@ socket.on("game:clear_canvas", () => {
 
 // Game UI Event Listeners
 const handleCreateGameRoom = () => {
-  const roomName = prompt("Enter a name for your game room:", "My Doodle Room");
-  if (roomName && roomName.trim()) {
-    socket.emit("game:create", roomName.trim());
-  }
+  roomNameInput.value = "My Doodle Room";
+  createGameModal.style.display = "flex";
+  roomNameInput.focus();
 };
 createGameRoomBtnDesktop.addEventListener("click", handleCreateGameRoom);
 createGameRoomBtnMobile.addEventListener("click", handleCreateGameRoom);
+
+createGameForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const roomName = roomNameInput.value.trim();
+  if (roomName) {
+    socket.emit("game:create", roomName);
+    createGameModal.style.display = "none";
+  }
+});
+
+cancelCreateGameBtn.addEventListener("click", () => {
+  createGameModal.style.display = "none";
+});
+
+createGameModal.addEventListener("click", (e) => {
+  if (e.target === createGameModal) {
+    createGameModal.style.display = "none";
+  }
+});
 
 startGameBtn.addEventListener("click", () => {
   if (currentRoom.startsWith("game-")) {
     socket.emit("game:start", currentRoom);
     startGameBtn.disabled = true;
-    startGameBtn.style.display = "none";
   }
 });
 
@@ -532,7 +564,7 @@ function drawLine(x0, y0, x1, y1, emit) {
 }
 
 function handleStart(e) {
-  if (gameInfo.textContent.startsWith("Your turn")) {
+  if (gameCanvas.style.cursor === "crosshair") {
     isDrawing = true;
     const pos = getMousePos(e);
     [lastX, lastY] = [pos.x, pos.y];
@@ -569,7 +601,9 @@ gameCanvas.addEventListener("touchmove", handleMove);
 gameCanvas.addEventListener("touchend", handleEnd);
 
 function endGame(hideContainer = true) {
-  if (hideContainer) gameContainer.style.display = "none";
+  if (hideContainer) {
+    gameContainer.style.display = "none";
+  }
   gameInfo.textContent = "";
   drawingTools.style.display = "none";
   gameCanvas.style.cursor = "default";

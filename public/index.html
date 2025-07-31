@@ -51,6 +51,34 @@
       </form>
     </div>
 
+    <!-- Modal for creating a game room -->
+    <div id="createGameModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <form id="createGameForm">
+          <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
+            ✏️ Create a Game Room
+          </h2>
+          <input
+            type="text"
+            id="roomNameInput"
+            placeholder="Enter room name"
+            required
+            maxlength="30"
+          />
+          <div class="modal-buttons">
+            <button
+              type="button"
+              id="cancelCreateGameBtn"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button type="submit">Create Room</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Main modal for mobile view with tabs -->
     <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content" style="max-height: 80vh; overflow-y: auto">

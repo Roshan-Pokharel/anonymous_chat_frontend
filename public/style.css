@@ -17,6 +17,8 @@
   --primary-accent-hover: #4338ca;
   --secondary-accent: #10b981;
   --secondary-accent-hover: #059669;
+  --btn-secondary-bg: #6b7280;
+  --btn-secondary-hover-bg: #4b5563;
   --shadow-color: rgba(0, 0, 0, 0.05);
   --error-color: #ef4444;
   --game-info-bg: rgba(255, 255, 255, 0.85);
@@ -220,6 +222,12 @@ button:disabled {
   background-color: #9ca3af;
   cursor: not-allowed;
 }
+button.btn-secondary {
+  background: var(--btn-secondary-bg);
+}
+button.btn-secondary:hover {
+  background: var(--btn-secondary-hover-bg);
+}
 
 .user {
   background: var(--user-bg);
@@ -382,6 +390,7 @@ body.dark-mode #typing-indicator {
   box-shadow: 0 2px 5px var(--shadow-color);
   backdrop-filter: blur(4px);
   z-index: 6;
+  text-align: center;
 }
 #drawingTools {
   position: absolute;
@@ -462,14 +471,17 @@ body.dark-mode #typing-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
 }
 .modal-content {
   background: var(--modal-content-bg);
   padding: 24px;
   border-radius: 14px;
   box-shadow: 0 4px 24px var(--shadow-color);
-  min-width: 320px;
-  max-width: 92vw;
+  width: 100%;
+  min-width: 300px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -487,6 +499,8 @@ body.dark-mode #typing-indicator {
   margin-bottom: 10px;
   background-color: var(--input-bg);
   color: var(--text-color);
+  width: 100%;
+  box-sizing: border-box;
 }
 .modal-content input:focus {
   border-color: var(--primary-accent);
@@ -504,6 +518,15 @@ body.dark-mode #typing-indicator {
   gap: 8px;
   cursor: pointer;
   font-size: 16px;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+.modal-buttons button {
+  flex: 1;
 }
 
 /* Mobile Modal Tabs */
