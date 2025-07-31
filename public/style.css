@@ -624,7 +624,12 @@ body.dark-mode #typing-indicator {
   }
 }
 
-/* --- ADDED STYLES FOR NEW FEATURES --- */
+/* --- ADDED/MODIFIED STYLES FOR NEW FEATURES --- */
+
+/* Fix for create game modal appearing under the main mobile modal */
+#createGameModal {
+  z-index: 1001;
+}
 
 /* Better spacing for game control buttons */
 .game-controls-desktop #startGameBtn,

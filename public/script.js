@@ -478,12 +478,28 @@ socket.on("game:over", ({ winner, scores }) => {
   endGame(true);
 });
 
+socket.on("game:terminated", (message) => {
+  addMessage({ text: message, isGameEvent: true }, "system");
+  endGame();
+  switchRoom("public", "🌐 Public Chat");
+});
+
 socket.on("game:draw", (data) => {
   const { x0, y0, x1, y1 } = data;
   const w = gameCanvas.clientWidth;
   const h = gameCanvas.clientHeight;
   drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false);
 });
+
+socket.on("game:drawing_history", (history) => {
+  history.forEach((data) => {
+    const { x0, y0, x1, y1 } = data;
+    const w = gameCanvas.clientWidth;
+    const h = gameCanvas.clientHeight;
+    drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false);
+  });
+});
+
 socket.on("game:clear_canvas", () =>
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height)
 );
@@ -494,7 +510,13 @@ function handleCreateGameRoom() {
   roomNameInput.focus();
 }
 createGameRoomBtnDesktop.addEventListener("click", handleCreateGameRoom);
-createGameRoomBtnMobile.addEventListener("click", handleCreateGameRoom);
+createGameRoomBtnMobile.addEventListener("click", () => {
+  // On mobile, hide the main modal before showing the create game modal
+  if (allUsersModal.style.display === "flex") {
+    allUsersModal.style.display = "none";
+  }
+  handleCreateGameRoom();
+});
 cancelCreateGameBtn.addEventListener(
   "click",
   () => (createGameModal.style.display = "none")
