@@ -72,6 +72,8 @@ let lastX = 0;
 let lastY = 0;
 let currentGameState = {};
 let overlayTimer;
+// FIX: Client-side storage for drawing history to persist through resizes
+let currentDrawingHistory = [];
 
 // --- PREDEFINED BACKGROUNDS (Client-side) ---
 const predefinedBackgrounds = [
@@ -89,11 +91,14 @@ window.addEventListener("load", () => {
   if (savedBackground) applyBackground(savedBackground);
   adjustHeightForKeyboard();
   populateBackgroundOptions(backgroundOptionsContainer);
-  setupCanvas();
+  // Note: setupCanvas() is now called when entering a game room, not on initial load.
 });
 window.addEventListener("resize", () => {
   adjustHeightForKeyboard();
-  setupCanvas();
+  // Only setup canvas on resize if we are in a game
+  if (currentRoom && currentRoom.startsWith("game-")) {
+    setupCanvas();
+  }
 });
 
 // --- Event Listeners ---
@@ -336,6 +341,11 @@ function switchRoom(roomName, title) {
 
   if (roomName.startsWith("game-")) {
     gameContainer.style.display = "flex";
+    // FIX 1: Call setupCanvas *after* the container is visible.
+    // Use a short timeout to ensure the DOM has updated and the element has dimensions.
+    setTimeout(() => {
+      setupCanvas();
+    }, 50);
   } else {
     socket.emit("join room", currentRoom);
     endGame();
@@ -373,6 +383,10 @@ function applyTheme(theme) {
   } else {
     document.body.classList.remove("dark-mode");
     themeToggleBtn.textContent = "🌙";
+  }
+  // FIX 2: Redraw canvas with the new theme's color if a game is active
+  if (currentRoom && currentRoom.startsWith("game-")) {
+    redrawFromHistory();
   }
 }
 function applyBackground(url) {
@@ -450,10 +464,14 @@ socket.on("game:word_prompt", (word) => {
   showGameOverlayMessage(`Draw: ${word}`, 4000);
 });
 socket.on("game:message", (text) => showGameOverlayMessage(text));
+
 socket.on("game:new_round", () => {
+  // FIX 2: Clear local drawing history for the new round
+  currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   showGameOverlayMessage("New Round!", 2000);
 });
+
 socket.on("game:correct_guess", ({ guesser, word }) => {
   showGameOverlayMessage(`✅ ${guesser.name} guessed it!`, 3000);
   addMessage(
@@ -484,25 +502,27 @@ socket.on("game:terminated", (message) => {
 });
 
 socket.on("game:draw", (data) => {
+  // FIX 2: Add incoming drawing data to local history
+  currentDrawingHistory.push(data);
   const { x0, y0, x1, y1 } = data;
   const w = gameCanvas.clientWidth;
   const h = gameCanvas.clientHeight;
-  drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false);
+  if (w === 0 || h === 0) return; // Don't draw if canvas is not visible
+  drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false); // 'false' to prevent re-emitting
 });
 
 socket.on("game:drawing_history", (history) => {
+  // FIX 2: Set the local history to the authoritative history from server
+  currentDrawingHistory = history;
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  history.forEach((data) => {
-    const { x0, y0, x1, y1 } = data;
-    const w = gameCanvas.clientWidth;
-    const h = gameCanvas.clientHeight;
-    drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false);
-  });
+  redrawFromHistory(); // Use the new redraw function
 });
 
-socket.on("game:clear_canvas", () =>
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height)
-);
+socket.on("game:clear_canvas", () => {
+  // FIX 2: Clear local drawing history
+  currentDrawingHistory = [];
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+});
 
 function handleCreateGameRoom() {
   createGameModal.style.display = "flex";
@@ -542,6 +562,8 @@ stopGameBtn.addEventListener("click", handleStopGame);
 stopGameBtnMobile.addEventListener("click", handleStopGame);
 
 clearCanvasBtn.addEventListener("click", () => {
+  // FIX 2: Clear local history when the drawer clears the canvas
+  currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   socket.emit("game:clear_canvas", currentRoom);
 });
@@ -612,7 +634,32 @@ function showScoreboard(winner, scores) {
   scoreboardModal.style.display = "flex";
 }
 
-// Canvas Functions
+// --- Canvas Functions ---
+
+// FIX 2: New function to redraw the canvas from the local history
+function redrawFromHistory() {
+  if (!ctx) return;
+  // Clear before redrawing
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  // Get current theme for color
+  ctx.strokeStyle = document.body.classList.contains("dark-mode")
+    ? "#FFFFFF"
+    : "#000000";
+  const w = gameCanvas.clientWidth;
+  const h = gameCanvas.clientHeight;
+  if (w === 0 || h === 0) return; // Don't draw if canvas is not visible
+
+  // Redraw every line from the stored history
+  currentDrawingHistory.forEach((data) => {
+    const { x0, y0, x1, y1 } = data;
+    ctx.beginPath();
+    ctx.moveTo(x0 * w, y0 * h);
+    ctx.lineTo(x1 * w, y1 * h);
+    ctx.stroke();
+    ctx.closePath();
+  });
+}
+
 function setupCanvas() {
   const dpr = window.devicePixelRatio || 1;
   const rect = gameCanvas.getBoundingClientRect();
@@ -622,6 +669,9 @@ function setupCanvas() {
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.lineWidth = 5;
+
+  // FIX 2: Redraw the canvas from history after resizing/setting up
+  redrawFromHistory();
 }
 
 function drawLine(x0, y0, x1, y1, emit = false) {
@@ -633,12 +683,20 @@ function drawLine(x0, y0, x1, y1, emit = false) {
     : "#000000";
   ctx.stroke();
   ctx.closePath();
+
   if (!emit) return;
   const w = gameCanvas.clientWidth;
   const h = gameCanvas.clientHeight;
+  if (w === 0 || h === 0) return; // Avoid division by zero
+
+  const drawData = { x0: x0 / w, y0: y0 / h, x1: x1 / w, y1: y1 / h };
+
+  // FIX 2: Add own drawing to local history immediately for responsiveness and resize-proofing
+  currentDrawingHistory.push(drawData);
+
   socket.emit("game:draw", {
     room: currentRoom,
-    data: { x0: x0 / w, y0: y0 / h, x1: x1 / w, y1: y1 / h },
+    data: drawData,
   });
 }
 
@@ -654,13 +712,11 @@ function handleStart(e) {
   }
 }
 
-// FIX: Corrected handleMove to draw locally in real-time
 function handleMove(e) {
   if (!isDrawing) return;
 
   e.preventDefault();
   const pos = getMousePos(e);
-  // Draw the line on the local canvas and emit the data
   drawLine(lastX, lastY, pos.x, pos.y, true);
   [lastX, lastY] = [pos.x, pos.y];
 }
@@ -668,6 +724,7 @@ function handleMove(e) {
 function handleEnd() {
   isDrawing = false;
 }
+
 function getMousePos(e) {
   const rect = gameCanvas.getBoundingClientRect();
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -691,4 +748,6 @@ function endGame(hideContainer = true) {
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   updateGameButtonVisibility({});
   currentGameState = {};
+  // FIX 2: Clear history when the game is over
+  currentDrawingHistory = [];
 }
