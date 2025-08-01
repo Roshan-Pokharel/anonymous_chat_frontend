@@ -472,12 +472,13 @@ body.dark-mode #typing-indicator {
   padding-right: 10px;
 }
 
-/* MODIFIED: Join button made more compact */
+/* MODIFIED: Join button made more compact and its width restricted */
 .game-room-item button {
-  padding: 6px 14px;
+  padding: 6px 12px;
   font-size: 14px;
-  flex-grow: 0;
-  flex-shrink: 0;
+  flex: 0 0 25%; /* Does not grow or shrink, basis of 25% */
+  max-width: 80px; /* Ensures the button doesn't become too wide */
+  text-align: center;
   background-color: var(--secondary-accent);
 }
 
@@ -749,7 +750,7 @@ body.dark-mode #typing-indicator {
   gap: 10px;
 }
 
-/* MODIFIED: Changed margin-top to move the close button up */
+/* MODIFIED: Changed margin-top to move the close button up from the bottom of the modal */
 .btn-close-modal {
   margin-top: 24px;
   background-color: var(--btn-secondary-bg);
