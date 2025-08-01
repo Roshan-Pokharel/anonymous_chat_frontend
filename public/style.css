@@ -472,15 +472,15 @@ body.dark-mode #typing-indicator {
   padding-right: 10px;
 }
 
-/* MODIFIED: Join button size reduced for mobile view */
+/* MODIFIED: Join button made more compact */
 .game-room-item button {
-  padding: 6px 12px; /* Adjusted padding */
+  padding: 6px 14px;
   font-size: 14px;
-  width: auto;
-  min-width: 70px; /* Set a min-width */
-  background-color: var(--secondary-accent);
+  flex-grow: 0;
   flex-shrink: 0;
+  background-color: var(--secondary-accent);
 }
+
 .game-room-item button:hover {
   background-color: var(--secondary-accent-hover);
 }
@@ -748,9 +748,10 @@ body.dark-mode #typing-indicator {
   flex-direction: column;
   gap: 10px;
 }
+
+/* MODIFIED: Changed margin-top to move the close button up */
 .btn-close-modal {
-  /* MODIFIED: Changed margin-top to prevent it from being at the very bottom */
-  margin-top: 16px;
+  margin-top: 24px;
   background-color: var(--btn-secondary-bg);
 }
 .btn-close-modal:hover {
