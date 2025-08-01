@@ -62,11 +62,48 @@
           required
           maxlength="30"
         />
+        <input
+          type="password"
+          id="roomPasswordInput"
+          placeholder="Optional 4-digit PIN"
+          pattern="[0-9]*"
+          inputmode="numeric"
+          maxlength="4"
+        />
         <div class="modal-buttons">
           <button type="button" id="cancelCreateGameBtn" class="btn-secondary">
             Cancel
           </button>
           <button type="submit">Create Room</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="passwordPromptModal" class="modal" style="display: none">
+      <form id="passwordPromptForm" class="modal-content">
+        <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
+          🔒 Room is Protected
+        </h2>
+        <p
+          id="passwordPromptMessage"
+          style="text-align: center; margin-top: -10px; margin-bottom: 15px"
+        >
+          Enter the 4-digit PIN to join.
+        </p>
+        <input
+          type="password"
+          id="joinPasswordInput"
+          placeholder="4-digit PIN"
+          pattern="[0-9]*"
+          inputmode="numeric"
+          maxlength="4"
+          required
+        />
+        <div class="modal-buttons">
+          <button type="button" id="cancelJoinBtn" class="btn-secondary">
+            Cancel
+          </button>
+          <button type="submit">Join</button>
         </div>
       </form>
     </div>
@@ -104,12 +141,10 @@
           </h3>
           <div id="gameControlsMobile">
             <button id="createGameRoomBtnMobile">Create Game Room</button>
-
             <fieldset class="room-list-fieldset">
               <legend>Available Rooms</legend>
               <div id="gameRoomListMobile"></div>
             </fieldset>
-
             <div class="mobile-game-actions">
               <button id="startGameBtnMobile" style="display: none">
                 Start Game

@@ -466,6 +466,7 @@ body.dark-mode #typing-indicator {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-right: 10px;
 }
 .game-room-item button {
   padding: 5px 12px;
@@ -473,9 +474,16 @@ body.dark-mode #typing-indicator {
   width: auto;
   min-width: auto;
   background-color: var(--secondary-accent);
+  flex-shrink: 0;
 }
 .game-room-item button:hover {
   background-color: var(--secondary-accent-hover);
+}
+/* NEW: Style for join button on in-progress games */
+.game-room-item button:disabled {
+  background-color: var(--btn-secondary-bg);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 .no-rooms-msg {
   font-style: italic;
@@ -515,7 +523,8 @@ body.dark-mode #typing-indicator {
   transition: background-color 0.3s;
 }
 .modal-content input[type="text"],
-.modal-content input[type="number"] {
+.modal-content input[type="number"],
+.modal-content input[type="password"] {
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   border: 1px solid var(--border-color);
@@ -665,10 +674,10 @@ body.dark-mode #typing-indicator {
   }
 }
 
-/* --- ADDED/MODIFIED STYLES FOR MOBILE UX --- */
+/* --- ADDED/MODIFIED STYLES FOR NEW FEATURES --- */
 
-/* Fix for create game modal appearing under the main mobile modal */
-#createGameModal {
+#createGameModal,
+#passwordPromptModal {
   z-index: 1001;
 }
 
@@ -679,7 +688,6 @@ body.dark-mode #typing-indicator {
   gap: 20px; /* Provides spacing between main sections */
   height: 100%;
 }
-/* Remove default margin on buttons inside for cleaner layout */
 #gameControlsMobile button {
   margin-bottom: 0;
 }
@@ -690,8 +698,8 @@ body.dark-mode #typing-indicator {
   border-radius: 8px;
   padding: 12px;
   margin: 0;
-  flex: 1; /* Allows this section to grow and fill available space */
-  min-height: 100px; /* Ensures it doesn't collapse */
+  flex: 1;
+  min-height: 100px;
   display: flex;
   flex-direction: column;
 }
@@ -700,13 +708,11 @@ body.dark-mode #typing-indicator {
   font-weight: 600;
   color: var(--text-color);
 }
-/* Make the list itself scrollable */
 #gameRoomListMobile {
   flex: 1;
   overflow-y: auto;
 }
 
-/* Container for contextual in-game buttons (Start/Stop) */
 .mobile-game-actions {
   padding-top: 16px;
   border-top: 1px solid var(--border-color);
@@ -714,17 +720,13 @@ body.dark-mode #typing-indicator {
   flex-direction: column;
   gap: 10px;
 }
-
-/* Position the main close button at the very bottom */
 .btn-close-modal {
-  margin-top: auto; /* Pushes the close button to the bottom */
+  margin-top: auto;
   background-color: var(--btn-secondary-bg);
 }
 .btn-close-modal:hover {
   background-color: var(--btn-secondary-hover-bg);
 }
-
-/* Better spacing for game control buttons */
 .game-controls-desktop #startGameBtn,
 .game-controls-desktop #stopGameBtn {
   margin-top: 8px;
@@ -732,11 +734,10 @@ body.dark-mode #typing-indicator {
 }
 #gameControlsMobile #startGameBtnMobile,
 #gameControlsMobile #stopGameBtnMobile {
-  margin-top: 12px;
+  margin-top: 0;
   margin-bottom: 0;
 }
 
-/* Final scoreboard modal clarity */
 #scoreboardTitle {
   margin-top: 0;
   margin-bottom: 18px;

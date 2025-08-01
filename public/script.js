@@ -23,11 +23,17 @@ const allUsersList = document.getElementById("allUsersList");
 const createGameModal = document.getElementById("createGameModal");
 const createGameForm = document.getElementById("createGameForm");
 const roomNameInput = document.getElementById("roomNameInput");
+const roomPasswordInput = document.getElementById("roomPasswordInput"); // New password input
 const cancelCreateGameBtn = document.getElementById("cancelCreateGameBtn");
 const scoreboardModal = document.getElementById("scoreboardModal");
 const scoreboardTitle = document.getElementById("scoreboardTitle");
 const finalScores = document.getElementById("finalScores");
 const closeScoreboardBtn = document.getElementById("closeScoreboardBtn");
+// New Password Prompt Modal Elements
+const passwordPromptModal = document.getElementById("passwordPromptModal");
+const passwordPromptForm = document.getElementById("passwordPromptForm");
+const joinPasswordInput = document.getElementById("joinPasswordInput");
+const cancelJoinBtn = document.getElementById("cancelJoinBtn");
 
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
@@ -64,6 +70,7 @@ let myId = null;
 let isTyping = false;
 let typingTimer;
 const TYPING_TIMER_LENGTH = 1500;
+let joiningRoomId = null; // To store room ID while prompting for password
 
 // Canvas/Drawing State
 const ctx = gameCanvas.getContext("2d");
@@ -72,15 +79,18 @@ let lastX = 0;
 let lastY = 0;
 let currentGameState = {};
 let overlayTimer;
-// FIX: Client-side storage for drawing history to persist through resizes
 let currentDrawingHistory = [];
 
-// --- PREDEFINED BACKGROUNDS (Client-side) ---
+// --- UPDATED: More Background Images ---
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1575&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=1470&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1332&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?q=80&w=1470&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=1470&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1426604966848-d7adac402bff?q=80&w=1470&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1433086966358-54859d0ed716?q=80&w=1374&auto=format&fit=crop",
 ];
 
 // --- Initialization ---
@@ -91,11 +101,9 @@ window.addEventListener("load", () => {
   if (savedBackground) applyBackground(savedBackground);
   adjustHeightForKeyboard();
   populateBackgroundOptions(backgroundOptionsContainer);
-  // Note: setupCanvas() is now called when entering a game room, not on initial load.
 });
 window.addEventListener("resize", () => {
   adjustHeightForKeyboard();
-  // Only setup canvas on resize if we are in a game
   if (currentRoom && currentRoom.startsWith("game-")) {
     setupCanvas();
   }
@@ -341,8 +349,6 @@ function switchRoom(roomName, title) {
 
   if (roomName.startsWith("game-")) {
     gameContainer.style.display = "flex";
-    // FIX 1: Call setupCanvas *after* the container is visible.
-    // Use a short timeout to ensure the DOM has updated and the element has dimensions.
     setTimeout(() => {
       setupCanvas();
     }, 50);
@@ -384,7 +390,6 @@ function applyTheme(theme) {
     document.body.classList.remove("dark-mode");
     themeToggleBtn.textContent = "🌙";
   }
-  // FIX 2: Redraw canvas with the new theme's color if a game is active
   if (currentRoom && currentRoom.startsWith("game-")) {
     redrawFromHistory();
   }
@@ -431,9 +436,21 @@ function showGameOverlayMessage(text, duration = 2500) {
 
 socket.on("game:roomsList", updateGameRoomList);
 socket.on("game:joined", (roomData) => {
+  // Hide password prompt if it was open
+  if (passwordPromptModal.style.display === "flex") {
+    passwordPromptModal.style.display = "none";
+  }
   switchRoom(roomData.id, `🎮 ${roomData.name}`);
   if (allUsersModal.style.display === "flex") {
     allUsersModal.style.display = "none";
+  }
+});
+// NEW: Handle errors when joining a game
+socket.on("game:join_error", (message) => {
+  displayError(message);
+  // Also hide the password prompt modal on error
+  if (passwordPromptModal.style.display === "flex") {
+    passwordPromptModal.style.display = "none";
   }
 });
 
@@ -466,7 +483,6 @@ socket.on("game:word_prompt", (word) => {
 socket.on("game:message", (text) => showGameOverlayMessage(text));
 
 socket.on("game:new_round", () => {
-  // FIX 2: Clear local drawing history for the new round
   currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   showGameOverlayMessage("New Round!", 2000);
@@ -476,7 +492,7 @@ socket.on("game:correct_guess", ({ guesser, word }) => {
   showGameOverlayMessage(`✅ ${guesser.name} guessed it!`, 3000);
   addMessage(
     {
-      text: `${guesser.name} guessed the word correctly! It was "${word}".`,
+      text: `${guesser.name} guessed the word! It was "${word}".`,
       isGameEvent: true,
     },
     "system"
@@ -502,24 +518,21 @@ socket.on("game:terminated", (message) => {
 });
 
 socket.on("game:draw", (data) => {
-  // FIX 2: Add incoming drawing data to local history
   currentDrawingHistory.push(data);
   const { x0, y0, x1, y1 } = data;
   const w = gameCanvas.clientWidth;
   const h = gameCanvas.clientHeight;
-  if (w === 0 || h === 0) return; // Don't draw if canvas is not visible
-  drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false); // 'false' to prevent re-emitting
+  if (w === 0 || h === 0) return;
+  drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false);
 });
 
 socket.on("game:drawing_history", (history) => {
-  // FIX 2: Set the local history to the authoritative history from server
   currentDrawingHistory = history;
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  redrawFromHistory(); // Use the new redraw function
+  redrawFromHistory();
 });
 
 socket.on("game:clear_canvas", () => {
-  // FIX 2: Clear local drawing history
   currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 });
@@ -539,14 +552,32 @@ cancelCreateGameBtn.addEventListener(
   () => (createGameModal.style.display = "none")
 );
 
+// UPDATED: createGameForm listener to include password
 createGameForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const roomName = roomNameInput.value.trim();
+  const password = roomPasswordInput.value.trim();
   if (roomName) {
-    socket.emit("game:create", roomName);
+    socket.emit("game:create", { roomName, password });
     createGameModal.style.display = "none";
     roomNameInput.value = "";
+    roomPasswordInput.value = "";
   }
+});
+
+// NEW: Listeners for the password prompt modal
+passwordPromptForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const password = joinPasswordInput.value;
+  if (joiningRoomId && password) {
+    socket.emit("game:join", { roomId: joiningRoomId, password });
+    joinPasswordInput.value = "";
+  }
+});
+cancelJoinBtn.addEventListener("click", () => {
+  passwordPromptModal.style.display = "none";
+  joiningRoomId = null;
+  joinPasswordInput.value = "";
 });
 
 function handleStartGame() {
@@ -562,7 +593,6 @@ stopGameBtn.addEventListener("click", handleStopGame);
 stopGameBtnMobile.addEventListener("click", handleStopGame);
 
 clearCanvasBtn.addEventListener("click", () => {
-  // FIX 2: Clear local history when the drawer clears the canvas
   currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   socket.emit("game:clear_canvas", currentRoom);
@@ -590,6 +620,7 @@ function updateGameButtonVisibility(state) {
   }
 }
 
+// UPDATED: updateGameRoomList to handle new room states
 function updateGameRoomList(rooms) {
   const renderList = (container) => {
     container.innerHTML = "";
@@ -600,9 +631,24 @@ function updateGameRoomList(rooms) {
     rooms.forEach((room) => {
       const item = document.createElement("div");
       item.className = "game-room-item";
-      item.innerHTML = `<span title="${room.name} (by ${room.creatorName})">${room.name} (${room.players.length}p)</span><button data-room-id="${room.id}">Join</button>`;
-      item.querySelector("button").onclick = () =>
-        socket.emit("game:join", room.id);
+      const lockIcon = room.hasPassword ? "🔒 " : "";
+      item.innerHTML = `<span title="${room.name} (by ${room.creatorName})">${lockIcon}${room.name} (${room.players.length}p)</span><button data-room-id="${room.id}">Join</button>`;
+
+      const joinBtn = item.querySelector("button");
+      if (room.inProgress) {
+        joinBtn.disabled = true;
+        joinBtn.textContent = "Active";
+      }
+
+      joinBtn.onclick = () => {
+        if (room.hasPassword) {
+          joiningRoomId = room.id;
+          passwordPromptModal.style.display = "flex";
+          joinPasswordInput.focus();
+        } else {
+          socket.emit("game:join", { roomId: room.id });
+        }
+      };
       container.appendChild(item);
     });
   };
@@ -635,21 +681,16 @@ function showScoreboard(winner, scores) {
 }
 
 // --- Canvas Functions ---
-
-// FIX 2: New function to redraw the canvas from the local history
 function redrawFromHistory() {
   if (!ctx) return;
-  // Clear before redrawing
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  // Get current theme for color
   ctx.strokeStyle = document.body.classList.contains("dark-mode")
     ? "#FFFFFF"
     : "#000000";
   const w = gameCanvas.clientWidth;
   const h = gameCanvas.clientHeight;
-  if (w === 0 || h === 0) return; // Don't draw if canvas is not visible
+  if (w === 0 || h === 0) return;
 
-  // Redraw every line from the stored history
   currentDrawingHistory.forEach((data) => {
     const { x0, y0, x1, y1 } = data;
     ctx.beginPath();
@@ -669,8 +710,6 @@ function setupCanvas() {
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.lineWidth = 5;
-
-  // FIX 2: Redraw the canvas from history after resizing/setting up
   redrawFromHistory();
 }
 
@@ -687,11 +726,9 @@ function drawLine(x0, y0, x1, y1, emit = false) {
   if (!emit) return;
   const w = gameCanvas.clientWidth;
   const h = gameCanvas.clientHeight;
-  if (w === 0 || h === 0) return; // Avoid division by zero
+  if (w === 0 || h === 0) return;
 
   const drawData = { x0: x0 / w, y0: y0 / h, x1: x1 / w, y1: y1 / h };
-
-  // FIX 2: Add own drawing to local history immediately for responsiveness and resize-proofing
   currentDrawingHistory.push(drawData);
 
   socket.emit("game:draw", {
@@ -714,7 +751,6 @@ function handleStart(e) {
 
 function handleMove(e) {
   if (!isDrawing) return;
-
   e.preventDefault();
   const pos = getMousePos(e);
   drawLine(lastX, lastY, pos.x, pos.y, true);
@@ -748,6 +784,5 @@ function endGame(hideContainer = true) {
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   updateGameButtonVisibility({});
   currentGameState = {};
-  // FIX 2: Clear history when the game is over
   currentDrawingHistory = [];
 }
