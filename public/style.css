@@ -437,9 +437,12 @@ body.dark-mode #typing-indicator {
   margin: 16px 0 12px 0;
   font-weight: 600;
 }
-.game-controls-desktop button,
-#gameControlsMobile button {
+.game-controls-desktop button {
   width: 100%;
+  margin-bottom: 8px;
+}
+#gameControlsMobile button {
+  width: 25%;
   margin-bottom: 8px;
 }
 
@@ -470,6 +473,7 @@ body.dark-mode #typing-indicator {
 }
 .game-room-item button {
   padding: 5px 12px;
+  margin-top: 7px;
   font-size: 14px;
   width: auto;
   min-width: auto;
