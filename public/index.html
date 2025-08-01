@@ -104,18 +104,24 @@
           </h3>
           <div id="gameControlsMobile">
             <button id="createGameRoomBtnMobile">Create Game Room</button>
-            <h4 class="room-list-header">Available Rooms</h4>
-            <div id="gameRoomListMobile"></div>
-            <button id="startGameBtnMobile" style="display: none">
-              Start Game
-            </button>
-            <button
-              id="stopGameBtnMobile"
-              style="display: none"
-              class="btn-secondary"
-            >
-              Stop Game
-            </button>
+
+            <fieldset class="room-list-fieldset">
+              <legend>Available Rooms</legend>
+              <div id="gameRoomListMobile"></div>
+            </fieldset>
+
+            <div class="mobile-game-actions">
+              <button id="startGameBtnMobile" style="display: none">
+                Start Game
+              </button>
+              <button
+                id="stopGameBtnMobile"
+                style="display: none"
+                class="btn-secondary"
+              >
+                Stop Game
+              </button>
+            </div>
           </div>
         </div>
 
@@ -131,7 +137,7 @@
 
         <button
           onclick="document.getElementById('allUsersModal').style.display='none';"
-          style="margin-top: 16px"
+          class="btn-close-modal"
         >
           Close
         </button>

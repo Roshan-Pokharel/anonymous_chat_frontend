@@ -637,6 +637,16 @@ body.dark-mode #typing-indicator {
   /* Make mobile modal a fixed size to prevent resizing on tab switch */
   #allUsersModal .modal-content {
     height: 80vh;
+    /* Allow content to control flow */
+    display: flex;
+    flex-direction: column;
+  }
+
+  #allUsersModal .modal-tab-content.active {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Game container adjustments for mobile */
@@ -655,11 +665,63 @@ body.dark-mode #typing-indicator {
   }
 }
 
-/* --- ADDED/MODIFIED STYLES FOR NEW FEATURES --- */
+/* --- ADDED/MODIFIED STYLES FOR MOBILE UX --- */
 
 /* Fix for create game modal appearing under the main mobile modal */
 #createGameModal {
   z-index: 1001;
+}
+
+/* General layout for the mobile game controls tab */
+#gameControlsMobile {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Provides spacing between main sections */
+  height: 100%;
+}
+/* Remove default margin on buttons inside for cleaner layout */
+#gameControlsMobile button {
+  margin-bottom: 0;
+}
+
+/* Styling for the fieldset to group the room list */
+.room-list-fieldset {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 0;
+  flex: 1; /* Allows this section to grow and fill available space */
+  min-height: 100px; /* Ensures it doesn't collapse */
+  display: flex;
+  flex-direction: column;
+}
+.room-list-fieldset legend {
+  padding: 0 8px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+/* Make the list itself scrollable */
+#gameRoomListMobile {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Container for contextual in-game buttons (Start/Stop) */
+.mobile-game-actions {
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Position the main close button at the very bottom */
+.btn-close-modal {
+  margin-top: auto; /* Pushes the close button to the bottom */
+  background-color: var(--btn-secondary-bg);
+}
+.btn-close-modal:hover {
+  background-color: var(--btn-secondary-hover-bg);
 }
 
 /* Better spacing for game control buttons */
