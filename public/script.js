@@ -23,17 +23,23 @@ const allUsersList = document.getElementById("allUsersList");
 const createGameModal = document.getElementById("createGameModal");
 const createGameForm = document.getElementById("createGameForm");
 const roomNameInput = document.getElementById("roomNameInput");
-const roomPasswordInput = document.getElementById("roomPasswordInput"); // New password input
+const roomPasswordInput = document.getElementById("roomPasswordInput");
 const cancelCreateGameBtn = document.getElementById("cancelCreateGameBtn");
 const scoreboardModal = document.getElementById("scoreboardModal");
 const scoreboardTitle = document.getElementById("scoreboardTitle");
 const finalScores = document.getElementById("finalScores");
 const closeScoreboardBtn = document.getElementById("closeScoreboardBtn");
-// New Password Prompt Modal Elements
 const passwordPromptModal = document.getElementById("passwordPromptModal");
 const passwordPromptForm = document.getElementById("passwordPromptForm");
 const joinPasswordInput = document.getElementById("joinPasswordInput");
 const cancelJoinBtn = document.getElementById("cancelJoinBtn");
+const passwordError = document.getElementById("passwordError"); // NEW: Password error element
+
+// NEW: How to Play Modal Elements
+const howToPlayModal = document.getElementById("howToPlayModal");
+const closeHowToPlayBtn = document.getElementById("closeHowToPlayBtn");
+const howToPlayBtnDesktop = document.getElementById("howToPlayBtnDesktop");
+const howToPlayBtnMobile = document.getElementById("howToPlayBtnMobile");
 
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
@@ -70,7 +76,8 @@ let myId = null;
 let isTyping = false;
 let typingTimer;
 const TYPING_TIMER_LENGTH = 1500;
-let joiningRoomId = null; // To store room ID while prompting for password
+let joiningRoomId = null;
+const LOGIN_EXPIRATION_MS = 5 * 60 * 1000; // NEW: 5 minutes for login persistence
 
 // Canvas/Drawing State
 const ctx = gameCanvas.getContext("2d");
@@ -81,7 +88,6 @@ let currentGameState = {};
 let overlayTimer;
 let currentDrawingHistory = [];
 
-// --- UPDATED: More Background Images ---
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1575&auto=format&fit=crop",
@@ -101,6 +107,7 @@ window.addEventListener("load", () => {
   if (savedBackground) applyBackground(savedBackground);
   adjustHeightForKeyboard();
   populateBackgroundOptions(backgroundOptionsContainer);
+  // MODIFIED: This function call is now handled inside the socket 'connect' event
 });
 window.addEventListener("resize", () => {
   adjustHeightForKeyboard();
@@ -170,7 +177,8 @@ mobileModalNav.addEventListener("click", (e) => {
 // --- Socket Event Handlers ---
 socket.on("connect", () => {
   myId = socket.id;
-  showUserModal();
+  // MODIFIED: Check for persisted login info on connection
+  checkForPersistedLogin();
 });
 
 socket.on("typing", ({ name, room }) => {
@@ -207,7 +215,7 @@ socket.on("message was read", ({ room, messageId }) => {
 });
 
 socket.on("chat message", (msg) => {
-  const isGameRoom = currentRoom.startsWith("game-");
+  const isGameRoom = currentRoom && currentRoom.startsWith("game-");
   if (msg.room === currentRoom) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
@@ -224,6 +232,26 @@ socket.on("chat message", (msg) => {
 });
 
 // --- Core Functions ---
+
+// NEW: Function to handle persisted login
+function checkForPersistedLogin() {
+  try {
+    const storedUser = JSON.parse(localStorage.getItem("userInfo"));
+    if (storedUser && Date.now() - storedUser.timestamp < LOGIN_EXPIRATION_MS) {
+      // User data is valid
+      socket.emit("user info", storedUser.data);
+      userModal.style.display = "none";
+      switchRoom("public", "🌐 Public Chat");
+    } else {
+      // No valid user data, show login modal
+      localStorage.removeItem("userInfo");
+      showUserModal();
+    }
+  } catch (error) {
+    showUserModal();
+  }
+}
+
 function showUserModal() {
   userModal.style.display = "flex";
   nicknameInput.focus();
@@ -241,7 +269,16 @@ function showUserModal() {
       ageInput.style.borderColor = "var(--error-color)";
       return;
     }
-    socket.emit("user info", { nickname, gender, age });
+    const userInfo = { nickname, gender, age };
+    socket.emit("user info", userInfo);
+
+    // NEW: Save user info to localStorage with a timestamp
+    const dataToStore = {
+      timestamp: Date.now(),
+      data: userInfo,
+    };
+    localStorage.setItem("userInfo", JSON.stringify(dataToStore));
+
     userModal.style.display = "none";
     switchRoom("public", "🌐 Public Chat");
   };
@@ -424,6 +461,18 @@ function populateBackgroundOptions(container) {
 
 // --- GAME LOGIC ---
 
+// NEW: Event listeners for "How to Play" modal
+const openHowToPlayModal = () => (howToPlayModal.style.display = "flex");
+howToPlayBtnDesktop.addEventListener("click", openHowToPlayModal);
+howToPlayBtnMobile.addEventListener("click", openHowToPlayModal);
+closeHowToPlayBtn.addEventListener(
+  "click",
+  () => (howToPlayModal.style.display = "none")
+);
+howToPlayModal.addEventListener("click", (e) => {
+  if (e.target === howToPlayModal) howToPlayModal.style.display = "none";
+});
+
 function showGameOverlayMessage(text, duration = 2500) {
   if (!gameOverlayMessage) return;
   gameOverlayMessage.textContent = text;
@@ -436,7 +485,6 @@ function showGameOverlayMessage(text, duration = 2500) {
 
 socket.on("game:roomsList", updateGameRoomList);
 socket.on("game:joined", (roomData) => {
-  // Hide password prompt if it was open
   if (passwordPromptModal.style.display === "flex") {
     passwordPromptModal.style.display = "none";
   }
@@ -445,12 +493,16 @@ socket.on("game:joined", (roomData) => {
     allUsersModal.style.display = "none";
   }
 });
-// NEW: Handle errors when joining a game
+
+// MODIFIED: Handle game join errors by showing message in the password modal
 socket.on("game:join_error", (message) => {
-  displayError(message);
-  // Also hide the password prompt modal on error
   if (passwordPromptModal.style.display === "flex") {
-    passwordPromptModal.style.display = "none";
+    passwordError.textContent = message;
+    passwordError.style.display = "block";
+    joinPasswordInput.focus();
+  } else {
+    // Fallback for non-password related join errors
+    displayError(message);
   }
 });
 
@@ -552,7 +604,6 @@ cancelCreateGameBtn.addEventListener(
   () => (createGameModal.style.display = "none")
 );
 
-// UPDATED: createGameForm listener to include password
 createGameForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const roomName = roomNameInput.value.trim();
@@ -565,7 +616,6 @@ createGameForm.addEventListener("submit", (e) => {
   }
 });
 
-// NEW: Listeners for the password prompt modal
 passwordPromptForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const password = joinPasswordInput.value;
@@ -578,6 +628,7 @@ cancelJoinBtn.addEventListener("click", () => {
   passwordPromptModal.style.display = "none";
   joiningRoomId = null;
   joinPasswordInput.value = "";
+  passwordError.style.display = "none"; // Hide error on cancel
 });
 
 function handleStartGame() {
@@ -614,13 +665,12 @@ function updateGameButtonVisibility(state) {
     const canStart = state.players.length >= 2;
     startGameBtn.disabled = !canStart;
     startGameBtnMobile.disabled = !canStart;
-    if (!canStart && !isGameActive) {
+    if (!canStart && !isGameActive && gameInfo) {
       gameInfo.textContent = "Waiting for at least 2 players to start...";
     }
   }
 }
 
-// UPDATED: updateGameRoomList to handle new room states
 function updateGameRoomList(rooms) {
   const renderList = (container) => {
     container.innerHTML = "";
@@ -643,6 +693,7 @@ function updateGameRoomList(rooms) {
       joinBtn.onclick = () => {
         if (room.hasPassword) {
           joiningRoomId = room.id;
+          passwordError.style.display = "none"; // Hide previous errors
           passwordPromptModal.style.display = "flex";
           joinPasswordInput.focus();
         } else {
@@ -778,9 +829,9 @@ gameCanvas.addEventListener("touchend", handleEnd);
 
 function endGame(hideContainer = true) {
   if (hideContainer) gameContainer.style.display = "none";
-  gameInfo.textContent = "";
-  drawingTools.style.display = "none";
-  gameCanvas.style.cursor = "default";
+  if (gameInfo) gameInfo.textContent = "";
+  if (drawingTools) drawingTools.style.display = "none";
+  if (gameCanvas) gameCanvas.style.cursor = "default";
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   updateGameButtonVisibility({});
   currentGameState = {};

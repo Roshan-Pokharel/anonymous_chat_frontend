@@ -16,7 +16,7 @@
     />
   </head>
   <body>
-    <div id="userModal" class="modal">
+    <div id="userModal" class="modal" style="display: none">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
           👤 Welcome! Set your profile
@@ -90,6 +90,17 @@
         >
           Enter the 4-digit PIN to join.
         </p>
+        <p
+          id="passwordError"
+          style="
+            color: var(--error-color);
+            text-align: center;
+            font-weight: 600;
+            margin-top: -5px;
+            margin-bottom: 10px;
+            display: none;
+          "
+        ></p>
         <input
           type="password"
           id="joinPasswordInput"
@@ -118,6 +129,34 @@
       </div>
     </div>
 
+    <div id="howToPlayModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <h2 style="color: #4f46e5; text-align: center">
+          ✏️ How to Play Doodle Dash
+        </h2>
+        <ul>
+          <li>
+            One player is the 'Drawer' and is given a secret word. Their job is
+            to draw that word.
+          </li>
+          <li>
+            The other players are 'Guessers'. They must guess the word by typing
+            in the chat.
+          </li>
+          <li>
+            A correct guess wins points for both the guesser and the drawer!
+          </li>
+          <li>
+            The first player to reach the winning score of 10 points is the
+            champion!
+          </li>
+        </ul>
+        <button type="button" id="closeHowToPlayBtn" style="margin-top: 16px">
+          Got It!
+        </button>
+      </div>
+    </div>
+
     <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content">
         <div id="mobileModalNav">
@@ -140,6 +179,9 @@
             Doodle Dash
           </h3>
           <div id="gameControlsMobile">
+            <button id="howToPlayBtnMobile" class="btn-secondary">
+              How to Play
+            </button>
             <button id="createGameRoomBtnMobile">Create Game Room</button>
             <fieldset class="room-list-fieldset">
               <legend>Available Rooms</legend>
@@ -196,6 +238,13 @@
 
         <div class="game-controls-desktop">
           <h4>✏️ Doodle Dash</h4>
+          <button
+            id="howToPlayBtnDesktop"
+            class="btn-secondary"
+            style="margin-bottom: 8px"
+          >
+            How to Play
+          </button>
           <button id="createGameRoomBtnDesktop">Create Game Room</button>
           <h4 class="room-list-header">Available Rooms</h4>
           <div id="gameRoomListDesktop">

@@ -442,7 +442,7 @@ body.dark-mode #typing-indicator {
   margin-bottom: 8px;
 }
 #gameControlsMobile button {
-  width: 25%;
+  width: 100%;
   margin-bottom: 8px;
 }
 
@@ -471,19 +471,19 @@ body.dark-mode #typing-indicator {
   text-overflow: ellipsis;
   padding-right: 10px;
 }
+
+/* MODIFIED: Join button size reduced for mobile view */
 .game-room-item button {
-  padding: 5px 12px;
-  margin-top: 7px;
+  padding: 6px 12px; /* Adjusted padding */
   font-size: 14px;
   width: auto;
-  min-width: auto;
+  min-width: 70px; /* Set a min-width */
   background-color: var(--secondary-accent);
   flex-shrink: 0;
 }
 .game-room-item button:hover {
   background-color: var(--secondary-accent-hover);
 }
-/* NEW: Style for join button on in-progress games */
 .game-room-item button:disabled {
   background-color: var(--btn-secondary-bg);
   cursor: not-allowed;
@@ -681,15 +681,39 @@ body.dark-mode #typing-indicator {
 /* --- ADDED/MODIFIED STYLES FOR NEW FEATURES --- */
 
 #createGameModal,
-#passwordPromptModal {
+#passwordPromptModal,
+#howToPlayModal {
+  /* Added howToPlayModal */
   z-index: 1001;
+}
+
+/* NEW: Styles for the "How to Play" modal content */
+#howToPlayModal .modal-content ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 16px 0 0 0;
+}
+
+#howToPlayModal .modal-content li {
+  margin-bottom: 12px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+}
+
+#howToPlayModal .modal-content li::before {
+  content: "🔹";
+  margin-right: 10px;
+  color: var(--primary-accent);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 /* General layout for the mobile game controls tab */
 #gameControlsMobile {
   display: flex;
   flex-direction: column;
-  gap: 20px; /* Provides spacing between main sections */
+  gap: 12px; /* Reduced gap for a tighter layout */
   height: 100%;
 }
 #gameControlsMobile button {
@@ -725,7 +749,8 @@ body.dark-mode #typing-indicator {
   gap: 10px;
 }
 .btn-close-modal {
-  margin-top: auto;
+  /* MODIFIED: Changed margin-top to prevent it from being at the very bottom */
+  margin-top: 16px;
   background-color: var(--btn-secondary-bg);
 }
 .btn-close-modal:hover {
