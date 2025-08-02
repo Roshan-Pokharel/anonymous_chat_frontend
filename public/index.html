@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>Anonymous Chat & Doodle</title>
+    <title>Anonymous Chat & Games</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -53,8 +53,18 @@
     <div id="createGameModal" class="modal" style="display: none">
       <form id="createGameForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
-          ✏️ Create a Game Room
+          🎮 Create a Game Room
         </h2>
+        <div class="game-type-selector">
+          <label>
+            <input type="radio" name="gameType" value="doodle" checked />
+            <span>✏️ Doodle Dash</span>
+          </label>
+          <label>
+            <input type="radio" name="gameType" value="hangman" />
+            <span>🤔 Hangman</span>
+          </label>
+        </div>
         <input
           type="text"
           id="roomNameInput"
@@ -130,28 +140,9 @@
     </div>
 
     <div id="howToPlayModal" class="modal" style="display: none">
-      <div class="modal-content">
-        <h2 style="color: #4f46e5; text-align: center">
-          ✏️ How to Play Doodle Dash
-        </h2>
-        <ul>
-          <li>
-            One player is the 'Drawer' and is given a secret word. Their job is
-            to draw that word.
-          </li>
-          <li>
-            The other players are 'Guessers'. They must guess the word by typing
-            in the chat.
-          </li>
-          <li>
-            A correct guess wins points for both the guesser and the drawer. One
-            point for drawer and two points for Guesser
-          </li>
-          <li>
-            The first player to reach the winning score of 10 points is the
-            champion!
-          </li>
-        </ul>
+      <div id="howToPlayContent" class="modal-content">
+        <h2 id="howToPlayTitle" style="color: #4f46e5; text-align: center"></h2>
+        <div id="howToPlayRules"></div>
         <button type="button" id="closeHowToPlayBtn" style="margin-top: 16px">
           Got It!
         </button>
@@ -167,7 +158,6 @@
             Appearance
           </button>
         </div>
-
         <div class="modal-tab-viewport">
           <div class="modal-tab-wrapper">
             <div id="usersTab" class="modal-tab-content">
@@ -178,12 +168,11 @@
               </h3>
               <div id="allUsersList"></div>
             </div>
-
             <div id="gameTab" class="modal-tab-content">
               <h3
                 style="margin-bottom: 12px; color: #4f46e5; text-align: center"
               >
-                Doodle Dash
+                Game Zone
               </h3>
               <div id="gameControlsMobile">
                 <button id="howToPlayBtnMobile" class="btn-secondary">
@@ -204,7 +193,6 @@
                 </div>
               </div>
             </div>
-
             <div id="appearanceTab" class="modal-tab-content">
               <h4
                 style="
@@ -257,31 +245,23 @@
               <div id="userList"></div>
             </div>
           </div>
-
           <div id="sidebar-game" class="sidebar-panel">
             <div class="game-controls-desktop">
-              <button id="doodleDashToggleBtn" class="game-toggle-btn">
-                ✏️ Doodle Dash
+              <h3 style="margin: 0 0 12px 0">Game Zone</h3>
+              <button id="howToPlayBtnDesktop" class="btn-secondary">
+                How to Play
               </button>
-              <div id="doodleDashControls" class="game-controls-container">
-                <button id="howToPlayBtnDesktop" class="btn-secondary">
-                  How to Play
-                </button>
-                <button id="createGameRoomBtnDesktop">Create Game Room</button>
-                <h4 class="room-list-header">Available Rooms</h4>
-                <div id="gameRoomListDesktop">
-                  <p class="no-rooms-msg">No active rooms.</p>
-                </div>
-                <button id="startGameBtn" style="display: none">
-                  Start Game
-                </button>
-                <button id="stopGameBtn" style="display: none">
-                  Stop Game
-                </button>
+              <button id="createGameRoomBtnDesktop">Create Game Room</button>
+              <h4 class="room-list-header">Available Rooms</h4>
+              <div id="gameRoomListDesktop">
+                <p class="no-rooms-msg">No active rooms.</p>
               </div>
+              <button id="startGameBtn" style="display: none">
+                Start Game
+              </button>
+              <button id="stopGameBtn" style="display: none">Stop Game</button>
             </div>
           </div>
-
           <div id="sidebar-appearance" class="sidebar-panel">
             <div class="background-settings">
               <h4>Room Background</h4>
@@ -292,7 +272,7 @@
       </div>
 
       <div id="chat">
-        <div id="gameContainer" style="display: none">
+        <div id="doodleGameContainer" style="display: none">
           <div id="gameTimer"></div>
           <div id="gameInfo"></div>
           <canvas id="gameCanvas"></canvas>
@@ -300,6 +280,24 @@
             <button id="clearCanvasBtn">Clear</button>
           </div>
           <div id="gameOverlayMessage" class="game-overlay-message"></div>
+        </div>
+
+        <div id="hangmanGameContainer" style="display: none">
+          <div id="hangmanDrawing">
+            <div class="hg-part gallows-base"></div>
+            <div class="hg-part gallows-pole"></div>
+            <div class="hg-part gallows-beam"></div>
+            <div class="hg-part gallows-rope"></div>
+            <div class="hg-part hg-head"></div>
+            <div class="hg-part hg-body"></div>
+            <div class="hg-part hg-arm-left"></div>
+            <div class="hg-part hg-arm-right"></div>
+            <div class="hg-part hg-leg-left"></div>
+            <div class="hg-part hg-leg-right"></div>
+          </div>
+          <div id="hangmanWordDisplay"></div>
+          <div id="hangmanIncorrectLetters"></div>
+          <div id="hangmanGameInfo"></div>
         </div>
 
         <div id="messages"></div>

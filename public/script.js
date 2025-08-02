@@ -37,6 +37,8 @@ const passwordError = document.getElementById("passwordError");
 
 // How to Play Modal Elements
 const howToPlayModal = document.getElementById("howToPlayModal");
+const howToPlayTitle = document.getElementById("howToPlayTitle");
+const howToPlayRules = document.getElementById("howToPlayRules");
 const closeHowToPlayBtn = document.getElementById("closeHowToPlayBtn");
 const howToPlayBtnDesktop = document.getElementById("howToPlayBtnDesktop");
 const howToPlayBtnMobile = document.getElementById("howToPlayBtnMobile");
@@ -44,7 +46,6 @@ const howToPlayBtnMobile = document.getElementById("howToPlayBtnMobile");
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
 const mobileModalContent = document.getElementById("mobileModalContent");
-// SMOOTH SWAP: Select the new wrapper for animation
 const modalTabWrapper = document.querySelector(".modal-tab-wrapper");
 const backgroundOptionsMobileContainer = document.getElementById(
   "backgroundOptionsMobile"
@@ -55,10 +56,10 @@ const sidebarNav = document.getElementById("sidebar-nav");
 const sidebarPanels = document.querySelectorAll(".sidebar-panel");
 
 // Game Elements
-const gameContainer = document.getElementById("gameContainer");
+const doodleGameContainer = document.getElementById("doodleGameContainer");
 const gameCanvas = document.getElementById("gameCanvas");
 const gameInfo = document.getElementById("gameInfo");
-const gameTimer = document.getElementById("gameTimer"); // New Timer Element
+const gameTimer = document.getElementById("gameTimer");
 const drawingTools = document.getElementById("drawingTools");
 const clearCanvasBtn = document.getElementById("clearCanvasBtn");
 const gameOverlayMessage = document.getElementById("gameOverlayMessage");
@@ -74,13 +75,20 @@ const startGameBtn = document.getElementById("startGameBtn");
 const stopGameBtn = document.getElementById("stopGameBtn");
 const startGameBtnMobile = document.getElementById("startGameBtnMobile");
 const stopGameBtnMobile = document.getElementById("stopGameBtnMobile");
-const doodleDashToggleBtn = document.getElementById("doodleDashToggleBtn");
-const doodleDashControls = document.getElementById("doodleDashControls");
+
+// Hangman Game Elements
+const hangmanGameContainer = document.getElementById("hangmanGameContainer");
+const hangmanDrawing = document.getElementById("hangmanDrawing");
+const hangmanWordDisplay = document.getElementById("hangmanWordDisplay");
+const hangmanIncorrectLetters = document.getElementById(
+  "hangmanIncorrectLetters"
+);
+const hangmanGameInfo = document.getElementById("hangmanGameInfo");
 
 // --- Application & Game State ---
 let latestUsers = [];
 let unreadPrivate = {};
-let currentRoom = null;
+let currentRoom = { id: null, type: null };
 let myId = null;
 let isTyping = false;
 let typingTimer;
@@ -96,7 +104,7 @@ let lastY = 0;
 let currentGameState = {};
 let overlayTimer;
 let currentDrawingHistory = [];
-let roundCountdownInterval = null; // New timer interval
+let roundCountdownInterval = null;
 
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
@@ -121,7 +129,7 @@ window.addEventListener("load", () => {
 });
 window.addEventListener("resize", () => {
   adjustHeightForKeyboard();
-  if (currentRoom && currentRoom.startsWith("game-")) {
+  if (currentRoom.type === "doodle") {
     setupCanvas();
   }
 });
@@ -130,12 +138,12 @@ window.addEventListener("resize", () => {
 input.addEventListener("input", () => {
   if (!isTyping) {
     isTyping = true;
-    socket.emit("typing", { room: currentRoom });
+    socket.emit("typing", { room: currentRoom.id });
   }
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => {
     isTyping = false;
-    socket.emit("stop typing", { room: currentRoom });
+    socket.emit("stop typing", { room: currentRoom.id });
   }, TYPING_TIMER_LENGTH);
 });
 
@@ -148,14 +156,26 @@ themeToggleBtn.addEventListener("click", () => {
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
-  if (input.value.trim()) {
-    socket.emit("chat message", { room: currentRoom, text: input.value });
-    clearTimeout(typingTimer);
-    isTyping = false;
-    socket.emit("stop typing", { room: currentRoom });
-    input.value = "";
-    setTimeout(() => input.focus(), 10);
+  const text = input.value.trim();
+  if (!text) return;
+
+  clearTimeout(typingTimer);
+  isTyping = false;
+  socket.emit("stop typing", { room: currentRoom.id });
+
+  // If in a hangman game, submit the input as a guess
+  if (
+    currentGameState.gameType === "hangman" &&
+    currentGameState.isRoundActive
+  ) {
+    socket.emit("hangman:guess", { room: currentRoom.id, letter: text });
+  } else {
+    // Otherwise, send as a regular chat message
+    socket.emit("chat message", { room: currentRoom.id, text: text });
   }
+
+  input.value = "";
+  setTimeout(() => input.focus(), 10);
 });
 
 showUsersBtn.onclick = () => {
@@ -174,89 +194,64 @@ closeScoreboardBtn.onclick = () => (scoreboardModal.style.display = "none");
 
 // --- Mobile Tab Navigation ---
 const mobileTabOrder = ["users", "game", "appearance"];
-
-// SMOOTH SWAP: Updated function to use CSS transform for sliding
 function switchMobileTab(tabName) {
   const tabIndex = mobileTabOrder.indexOf(tabName);
   if (tabIndex === -1) return;
-
-  // Update nav buttons styling
   document
     .querySelectorAll(".modal-nav-btn")
     .forEach((btn) => btn.classList.remove("active"));
   document
     .querySelector(`.modal-nav-btn[data-tab="${tabName}"]`)
     .classList.add("active");
-
-  // Apply the transform to slide the wrapper
   modalTabWrapper.style.transform = `translateX(-${tabIndex * 100}%)`;
 }
-
 mobileModalNav.addEventListener("click", (e) => {
   if (e.target.tagName !== "BUTTON") return;
-  const tabName = e.target.dataset.tab;
-  switchMobileTab(tabName);
+  switchMobileTab(e.target.dataset.tab);
 });
-
 function setupMobileModalSwipe() {
   let touchStartX = 0;
   let touchEndX = 0;
-  const swipeThreshold = 50; // Minimum distance for a swipe
-
+  const swipeThreshold = 50;
   mobileModalContent.addEventListener("touchstart", (e) => {
-    // Only start tracking swipe on the tab content area, not the nav buttons
-    if (e.target.closest(".modal-tab-viewport")) {
+    if (e.target.closest(".modal-tab-viewport"))
       touchStartX = e.changedTouches[0].screenX;
-    }
   });
-
   mobileModalContent.addEventListener("touchend", (e) => {
-    if (touchStartX === 0) return; // Didn't start on the right element
+    if (touchStartX === 0) return;
     touchEndX = e.changedTouches[0].screenX;
     handleSwipeGesture();
-    touchStartX = 0; // Reset for next touch
+    touchStartX = 0;
   });
-
   function handleSwipeGesture() {
     const deltaX = touchEndX - touchStartX;
-    if (Math.abs(deltaX) < swipeThreshold) return; // Not a significant swipe
-
+    if (Math.abs(deltaX) < swipeThreshold) return;
     const currentActiveBtn = document.querySelector(".modal-nav-btn.active");
     if (!currentActiveBtn) return;
-
-    const currentTabName = currentActiveBtn.dataset.tab;
-    const currentIndex = mobileTabOrder.indexOf(currentTabName);
-
-    if (deltaX < 0) {
-      // Swiped left
-      const nextIndex = (currentIndex + 1) % mobileTabOrder.length;
-      switchMobileTab(mobileTabOrder[nextIndex]);
-    } else {
-      // Swiped right
-      const prevIndex =
-        (currentIndex - 1 + mobileTabOrder.length) % mobileTabOrder.length;
-      switchMobileTab(mobileTabOrder[prevIndex]);
-    }
+    const currentIndex = mobileTabOrder.indexOf(currentActiveBtn.dataset.tab);
+    if (deltaX < 0)
+      switchMobileTab(
+        mobileTabOrder[(currentIndex + 1) % mobileTabOrder.length]
+      );
+    else
+      switchMobileTab(
+        mobileTabOrder[
+          (currentIndex - 1 + mobileTabOrder.length) % mobileTabOrder.length
+        ]
+      );
   }
 }
 
 sidebarNav.addEventListener("click", (e) => {
   if (e.target.tagName !== "BUTTON") return;
   const panelId = e.target.dataset.panel;
-
   document
     .querySelectorAll(".sidebar-nav-btn")
     .forEach((btn) => btn.classList.remove("active"));
   e.target.classList.add("active");
-
   sidebarPanels.forEach((panel) => {
     panel.classList.toggle("active", panel.id === panelId);
   });
-});
-
-doodleDashToggleBtn.addEventListener("click", () => {
-  doodleDashControls.style.display =
-    doodleDashControls.style.display === "none" ? "flex" : "none";
 });
 
 // --- Socket Event Handlers ---
@@ -266,13 +261,13 @@ socket.on("connect", () => {
 });
 
 socket.on("typing", ({ name, room }) => {
-  if (room === currentRoom) {
+  if (room === currentRoom.id) {
     typingIndicator.textContent = `${name} is typing...`;
     typingIndicator.style.opacity = "1";
   }
 });
 socket.on("stop typing", ({ room }) => {
-  if (room === currentRoom) {
+  if (room === currentRoom.id) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
   }
@@ -287,7 +282,7 @@ socket.on("room history", (msgs) => {
 });
 socket.on("rate limit", (msg) => displayError(msg));
 socket.on("message was read", ({ room, messageId }) => {
-  if (room === currentRoom) {
+  if (room === currentRoom.id) {
     const msgEl = document.querySelector(
       `.msg[data-message-id="${messageId}"] .read-receipt`
     );
@@ -299,17 +294,20 @@ socket.on("message was read", ({ room, messageId }) => {
 });
 
 socket.on("chat message", (msg) => {
-  const isGameRoom = currentRoom && currentRoom.startsWith("game-");
-  if (msg.room === currentRoom) {
+  if (msg.room === currentRoom.id) {
     typingIndicator.textContent = "";
     typingIndicator.style.opacity = "0";
     addMessage(msg);
-    if (!isGameRoom && msg.room !== "public") {
+    if (currentRoom.type === "private" && msg.room !== "public") {
       const otherId = msg.id === myId ? msg.to : msg.id;
       delete unreadPrivate[otherId];
       updateUserList();
     }
-  } else if (!isGameRoom && msg.room !== "public" && msg.to === myId) {
+  } else if (
+    msg.room.includes("-") &&
+    !msg.room.startsWith("game-") &&
+    msg.to === myId
+  ) {
     unreadPrivate[msg.id] = true;
     updateUserList();
   }
@@ -323,7 +321,7 @@ function checkForPersistedLogin() {
     if (storedUser && Date.now() - storedUser.timestamp < LOGIN_EXPIRATION_MS) {
       socket.emit("user info", storedUser.data);
       userModal.style.display = "none";
-      switchRoom("public", "🌐 Public Chat");
+      switchRoom("public", "🌐 Public Chat", "public");
     } else {
       localStorage.removeItem("userInfo");
       showUserModal();
@@ -352,15 +350,10 @@ function showUserModal() {
     }
     const userInfo = { nickname, gender, age };
     socket.emit("user info", userInfo);
-
-    const dataToStore = {
-      timestamp: Date.now(),
-      data: userInfo,
-    };
+    const dataToStore = { timestamp: Date.now(), data: userInfo };
     localStorage.setItem("userInfo", JSON.stringify(dataToStore));
-
     userModal.style.display = "none";
-    switchRoom("public", "🌐 Public Chat");
+    switchRoom("public", "🌐 Public Chat", "public");
   };
 }
 
@@ -378,18 +371,16 @@ function addMessage(msg, type = "") {
   else item.classList.add(isMe ? "me" : "other");
 
   const readReceiptHTML =
-    isMe && currentRoom !== "public" && !currentRoom.startsWith("game-")
+    isMe && currentRoom.type === "private"
       ? `<span class="read-receipt">${
           msg.status === "read" ? "✓✓" : "✓"
         }</span>`
       : "";
-
   const nameHTML = isSystem
     ? ""
     : `<span style="color:${getGenderColor(msg.gender)};">${
         msg.name
       }${getGenderSymbol(msg.gender)}${msg.age ? " · " + msg.age : ""}</span>`;
-
   const messageContent = isSystem
     ? `<strong>${msg.text}</strong>`
     : `${nameHTML}${msg.text}${readReceiptHTML}`;
@@ -398,14 +389,9 @@ function addMessage(msg, type = "") {
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
 
-  if (
-    !isMe &&
-    !isSystem &&
-    currentRoom !== "public" &&
-    !currentRoom.startsWith("game-")
-  ) {
+  if (!isMe && !isSystem && currentRoom.type === "private") {
     socket.emit("message read", {
-      room: currentRoom,
+      room: currentRoom.id,
       messageId: msg.messageId,
     });
   }
@@ -420,7 +406,7 @@ function updateUserList() {
     publicBtn.className = "user public-room";
     publicBtn.innerHTML = `🌐 Public Room`;
     publicBtn.onclick = () => {
-      switchRoom("public", "🌐 Public Chat");
+      switchRoom("public", "🌐 Public Chat", "public");
       if (allUsersModal.style.display === "flex") {
         allUsersModal.style.display = "none";
       }
@@ -429,20 +415,16 @@ function updateUserList() {
 
     latestUsers.forEach((user) => {
       if (user.id === myId) return;
-
       const div = document.createElement("div");
       div.className = "user";
       const avatarColor = generateColorFromId(user.id);
       const initial = user.name.charAt(0).toUpperCase();
-
       div.innerHTML = `
-        <div class="user-avatar" style="background-color: ${avatarColor};">
-          ${initial}
-        </div>
+        <div class="user-avatar" style="background-color: ${avatarColor};">${initial}</div>
         <div class="user-info">
-          <div class="user-name" style="color:${getGenderColor(user.gender)};">
-            ${user.name}
-          </div>
+          <div class="user-name" style="color:${getGenderColor(
+            user.gender
+          )};">${user.name}</div>
           <div class="user-details">
             <span class="status-dot"></span>
             <span>Online ${getGenderSymbol(user.gender)} ${
@@ -451,10 +433,9 @@ function updateUserList() {
           </div>
         </div>
         ${unreadPrivate[user.id] ? '<span class="red-dot"></span>' : ""} `;
-
       div.onclick = () => {
         const privateRoomName = [myId, user.id].sort().join("-");
-        switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
+        switchRoom(privateRoomName, `🔒 Chat with ${user.name}`, "private");
         delete unreadPrivate[user.id];
         updateUserList();
         if (allUsersModal.style.display === "flex") {
@@ -469,44 +450,42 @@ function updateUserList() {
   processList(allUsersList);
 }
 
-function switchRoom(roomName, title) {
-  if (currentRoom === roomName) return;
+function switchRoom(roomId, title, roomType) {
+  if (currentRoom.id === roomId) return;
 
-  if (currentRoom && currentRoom.startsWith("game-")) {
-    socket.emit("game:leave", currentRoom);
+  if (currentRoom.id && currentRoom.id.startsWith("game-")) {
+    socket.emit("game:leave", currentRoom.id);
     endGame();
   }
 
-  currentRoom = roomName;
+  currentRoom = { id: roomId, type: roomType };
   roomTitle.textContent = title;
   messages.innerHTML = "";
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
 
-  if (roomName.startsWith("game-")) {
-    gameContainer.style.display = "flex";
-    setTimeout(() => {
-      setupCanvas();
-    }, 50);
+  if (roomType === "doodle" || roomType === "hangman") {
+    socket.emit("join room", roomId); // Still need to join the socket room
+    showGameContainer(roomType);
+    if (roomType === "doodle") {
+      setTimeout(setupCanvas, 50);
+    }
   } else {
-    socket.emit("join room", currentRoom);
-    endGame();
+    socket.emit("join room", roomId);
+    endGame(); // Hides all game containers
   }
   updateGameButtonVisibility({});
 }
 
 // --- Helper & UI Functions ---
-
 function generateColorFromId(id) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
     hash = id.charCodeAt(i) + ((hash << 5) - hash);
     hash = hash & hash;
   }
-  const color = `hsl(${hash % 360}, 70%, 50%)`;
-  return color;
+  return `hsl(${hash % 360}, 70%, 50%)`;
 }
-
 function getGenderSymbol(gender) {
   return gender === "female" ? "♀" : "♂";
 }
@@ -537,7 +516,7 @@ function applyTheme(theme) {
     document.body.classList.remove("dark-mode");
     themeToggleBtn.textContent = "🌙";
   }
-  if (currentRoom && currentRoom.startsWith("game-")) {
+  if (currentRoom.type === "doodle") {
     redrawFromHistory();
   }
 }
@@ -556,13 +535,11 @@ function applyBackground(url) {
 function populateBackgroundOptions(container) {
   if (!container) return;
   container.innerHTML = "";
-
   const defaultOption = document.createElement("div");
   defaultOption.className = "background-option background-option-default";
   defaultOption.innerHTML = "<span>Default</span>";
   defaultOption.onclick = () => applyBackground(null);
   container.appendChild(defaultOption);
-
   predefinedBackgrounds.forEach((url) => {
     const option = document.createElement("div");
     option.className = "background-option";
@@ -573,8 +550,32 @@ function populateBackgroundOptions(container) {
 }
 
 // --- GAME LOGIC ---
-
-const openHowToPlayModal = () => (howToPlayModal.style.display = "flex");
+const openHowToPlayModal = () => {
+  const gameType = currentGameState.gameType || "doodle";
+  howToPlayTitle.textContent =
+    gameType === "doodle"
+      ? "✏️ How to Play Doodle Dash"
+      : "🤔 How to Play Hangman";
+  howToPlayRules.innerHTML =
+    gameType === "doodle"
+      ? `
+        <ul>
+          <li>One player is the 'Drawer' and is given a secret word to draw.</li>
+          <li>Other players are 'Guessers' and must guess the word by typing in the chat.</li>
+          <li>A correct guess wins 2 points for the guesser and 1 point for the drawer.</li>
+          <li>The first player to reach 10 points is the champion!</li>
+        </ul>
+    `
+      : `
+        <ul>
+          <li>A secret word is chosen, and players must guess it letter by letter.</li>
+          <li>Type a single letter in the chat to make a guess.</li>
+          <li>Each incorrect guess adds another part to the hangman drawing.</li>
+          <li>Guess the word before the hangman is complete (6 incorrect guesses) to win the round!</li>
+        </ul>
+    `;
+  howToPlayModal.style.display = "flex";
+};
 howToPlayBtnDesktop.addEventListener("click", openHowToPlayModal);
 howToPlayBtnMobile.addEventListener("click", openHowToPlayModal);
 closeHowToPlayBtn.addEventListener(
@@ -595,16 +596,13 @@ function showGameOverlayMessage(text, duration = 2500) {
   }, duration);
 }
 
-// New function to handle the round timer
 function updateRoundTimer(endTime) {
   clearInterval(roundCountdownInterval);
   if (!endTime) {
     gameTimer.style.display = "none";
     return;
   }
-
   gameTimer.style.display = "block";
-
   const update = () => {
     const timeLeft = Math.round((endTime - Date.now()) / 1000);
     if (timeLeft <= 0) {
@@ -614,22 +612,19 @@ function updateRoundTimer(endTime) {
       gameTimer.textContent = timeLeft;
     }
   };
-
   update();
   roundCountdownInterval = setInterval(update, 1000);
 }
 
+// --- Socket Game Event Handlers ---
 socket.on("game:roomsList", updateGameRoomList);
 socket.on("game:joined", (roomData) => {
-  if (passwordPromptModal.style.display === "flex") {
+  if (passwordPromptModal.style.display === "flex")
     passwordPromptModal.style.display = "none";
-  }
-  switchRoom(roomData.id, `🎮 ${roomData.name}`);
-  if (allUsersModal.style.display === "flex") {
+  switchRoom(roomData.id, `🎮 ${roomData.name}`, roomData.gameType);
+  if (allUsersModal.style.display === "flex")
     allUsersModal.style.display = "none";
-  }
 });
-
 socket.on("game:join_error", (message) => {
   if (passwordPromptModal.style.display === "flex") {
     passwordError.textContent = message;
@@ -642,44 +637,27 @@ socket.on("game:join_error", (message) => {
 
 socket.on("game:state", (state) => {
   currentGameState = state;
-  gameContainer.style.display = "flex";
+  showGameContainer(state.gameType);
   updateGameButtonVisibility(state);
 
-  if (state.isRoundActive) {
-    const isDrawer = state.drawer && state.drawer.id === myId;
-    gameInfo.textContent = isDrawer
-      ? "Your turn to draw!"
-      : `${state.drawer.name} is drawing...`;
-    drawingTools.style.display = isDrawer ? "flex" : "none";
-    gameCanvas.style.cursor = isDrawer ? "crosshair" : "not-allowed";
-    // Start or update the timer
-    if (state.roundEndTime) {
-      updateRoundTimer(state.roundEndTime);
-    }
-  } else {
-    updateRoundTimer(null); // Hide timer if round is not active
-    if (state.creatorId === myId) {
-      gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
-    } else {
-      const creator = latestUsers.find((u) => u.id === state.creatorId);
-      gameInfo.textContent = `Waiting for ${
-        creator ? creator.name : "the host"
-      } to start the game.`;
-    }
+  if (state.gameType === "doodle") {
+    renderDoodleState(state);
+  } else if (state.gameType === "hangman") {
+    renderHangmanState(state);
   }
 });
 
-socket.on("game:word_prompt", (word) => {
-  showGameOverlayMessage(`Draw: ${word}`, 4000);
-});
+socket.on("game:word_prompt", (word) =>
+  showGameOverlayMessage(`Draw: ${word}`, 4000)
+);
 socket.on("game:message", (text) => showGameOverlayMessage(text));
-
 socket.on("game:new_round", () => {
-  currentDrawingHistory = [];
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  if (currentGameState.gameType === "doodle") {
+    currentDrawingHistory = [];
+    ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  }
   showGameOverlayMessage("New Round!", 2000);
 });
-
 socket.on("game:correct_guess", ({ guesser, word }) => {
   showGameOverlayMessage(`✅ ${guesser.name} guessed it!`, 3000);
   addMessage(
@@ -690,25 +668,21 @@ socket.on("game:correct_guess", ({ guesser, word }) => {
     "system"
   );
 });
-
 socket.on("game:end", (text) => {
   addMessage({ text, isGameEvent: true }, "system");
   endGame(false);
   updateGameButtonVisibility({ ...currentGameState, isRoundActive: false });
 });
-
 socket.on("game:over", ({ winner, scores }) => {
   showGameOverlayMessage(`🎉 ${winner.name} wins the game!`, 4000);
   showScoreboard(winner, scores);
   endGame(true);
 });
-
 socket.on("game:terminated", (message) => {
   showGameOverlayMessage(message, 3000);
   endGame();
-  switchRoom("public", "🌐 Public Chat");
+  switchRoom("public", "🌐 Public Chat", "public");
 });
-
 socket.on("game:draw", (data) => {
   currentDrawingHistory.push(data);
   const { x0, y0, x1, y1 } = data;
@@ -717,18 +691,17 @@ socket.on("game:draw", (data) => {
   if (w === 0 || h === 0) return;
   drawLine(x0 * w, y0 * h, x1 * w, y1 * h, false);
 });
-
 socket.on("game:drawing_history", (history) => {
   currentDrawingHistory = history;
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   redrawFromHistory();
 });
-
 socket.on("game:clear_canvas", () => {
   currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 });
 
+// --- Game UI and Actions ---
 function handleCreateGameRoom() {
   createGameModal.style.display = "flex";
   roomNameInput.focus();
@@ -743,19 +716,18 @@ cancelCreateGameBtn.addEventListener(
   "click",
   () => (createGameModal.style.display = "none")
 );
-
 createGameForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const roomName = roomNameInput.value.trim();
   const password = roomPasswordInput.value.trim();
+  const gameType = createGameForm.gameType.value; // Get selected game type
   if (roomName) {
-    socket.emit("game:create", { roomName, password });
+    socket.emit("game:create", { roomName, password, gameType });
     createGameModal.style.display = "none";
     roomNameInput.value = "";
     roomPasswordInput.value = "";
   }
 });
-
 passwordPromptForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const password = joinPasswordInput.value;
@@ -772,13 +744,15 @@ cancelJoinBtn.addEventListener("click", () => {
 });
 
 function handleStartGame() {
-  if (currentRoom.startsWith("game-")) socket.emit("game:start", currentRoom);
+  if (currentRoom.id.startsWith("game-"))
+    socket.emit("game:start", currentRoom.id);
 }
 startGameBtn.addEventListener("click", handleStartGame);
 startGameBtnMobile.addEventListener("click", handleStartGame);
 
 function handleStopGame() {
-  if (currentRoom.startsWith("game-")) socket.emit("game:stop", currentRoom);
+  if (currentRoom.id.startsWith("game-"))
+    socket.emit("game:stop", currentRoom.id);
 }
 stopGameBtn.addEventListener("click", handleStopGame);
 stopGameBtnMobile.addEventListener("click", handleStopGame);
@@ -786,13 +760,13 @@ stopGameBtnMobile.addEventListener("click", handleStopGame);
 clearCanvasBtn.addEventListener("click", () => {
   currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  socket.emit("game:clear_canvas", currentRoom);
+  socket.emit("game:clear_canvas", currentRoom.id);
 });
 
 function updateGameButtonVisibility(state) {
   const isGameActive = state && state.isRoundActive;
   const isCreator = state && state.creatorId === myId;
-  const isGameRoom = currentRoom && currentRoom.startsWith("game-");
+  const isGameRoom = currentRoom.id && currentRoom.id.startsWith("game-");
 
   const showStart = isGameRoom && isCreator && !isGameActive;
   const showStop = isGameRoom && isCreator && isGameActive;
@@ -818,11 +792,14 @@ function updateGameButtonVisibility(state) {
   }
 
   if (state && state.players) {
-    const canStart = state.players.length >= 2;
+    const minPlayers = state.gameType === "doodle" ? 2 : 1;
+    const canStart = state.players.length >= minPlayers;
     startGameBtn.disabled = !canStart;
     startGameBtnMobile.disabled = !canStart;
-    if (!canStart && !isGameActive && gameInfo) {
-      gameInfo.textContent = "Waiting for at least 2 players to start...";
+    if (!canStart && !isGameActive && (gameInfo || hangmanGameInfo)) {
+      const infoElem = state.gameType === "doodle" ? gameInfo : hangmanGameInfo;
+      if (infoElem)
+        infoElem.textContent = `Waiting for at least ${minPlayers} player(s) to start...`;
     }
   }
 }
@@ -839,14 +816,13 @@ function updateGameRoomList(rooms) {
       const item = document.createElement("div");
       item.className = "game-room-item";
       const lockIcon = room.hasPassword ? "🔒 " : "";
-      item.innerHTML = `<span title="${room.name} (by ${room.creatorName})">${lockIcon}${room.name} (${room.players.length}p)</span><button data-room-id="${room.id}">Join</button>`;
-
+      const gameIcon = room.gameType === "doodle" ? "✏️" : "🤔";
+      item.innerHTML = `<span title="${room.name} (by ${room.creatorName})">${gameIcon} ${lockIcon}${room.name} (${room.players.length}p)</span><button data-room-id="${room.id}">Join</button>`;
       const joinBtn = item.querySelector("button");
       if (room.inProgress) {
         joinBtn.disabled = true;
         joinBtn.textContent = "Active";
       }
-
       joinBtn.onclick = () => {
         if (room.hasPassword) {
           joiningRoomId = room.id;
@@ -888,7 +864,54 @@ function showScoreboard(winner, scores) {
   scoreboardModal.style.display = "flex";
 }
 
-// --- Canvas Functions ---
+function showGameContainer(gameType) {
+  doodleGameContainer.style.display = gameType === "doodle" ? "flex" : "none";
+  hangmanGameContainer.style.display = gameType === "hangman" ? "flex" : "none";
+  input.placeholder =
+    gameType === "hangman"
+      ? "Guess a letter..."
+      : "Type your message or guess...";
+}
+
+function endGame(hideContainers = true) {
+  if (hideContainers) {
+    doodleGameContainer.style.display = "none";
+    hangmanGameContainer.style.display = "none";
+  }
+  if (gameInfo) gameInfo.textContent = "";
+  if (drawingTools) drawingTools.style.display = "none";
+  if (gameCanvas) gameCanvas.style.cursor = "default";
+  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  updateGameButtonVisibility({});
+  updateRoundTimer(null);
+  currentGameState = {};
+  currentDrawingHistory = [];
+  input.placeholder = "Type your message or guess...";
+}
+
+// --- Doodle Dash Specific Functions ---
+function renderDoodleState(state) {
+  if (state.isRoundActive) {
+    const isDrawer = state.drawer && state.drawer.id === myId;
+    gameInfo.textContent = isDrawer
+      ? "Your turn to draw!"
+      : `${state.drawer.name} is drawing...`;
+    drawingTools.style.display = isDrawer ? "flex" : "none";
+    gameCanvas.style.cursor = isDrawer ? "crosshair" : "not-allowed";
+    if (state.roundEndTime) updateRoundTimer(state.roundEndTime);
+  } else {
+    updateRoundTimer(null);
+    if (state.creatorId === myId) {
+      gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
+    } else {
+      const creator = latestUsers.find((u) => u.id === state.creatorId);
+      gameInfo.textContent = `Waiting for ${
+        creator ? creator.name : "the host"
+      } to start the game.`;
+    }
+  }
+}
+
 function redrawFromHistory() {
   if (!ctx) return;
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
@@ -898,7 +921,6 @@ function redrawFromHistory() {
   const w = gameCanvas.clientWidth;
   const h = gameCanvas.clientHeight;
   if (w === 0 || h === 0) return;
-
   currentDrawingHistory.forEach((data) => {
     const { x0, y0, x1, y1 } = data;
     ctx.beginPath();
@@ -930,19 +952,13 @@ function drawLine(x0, y0, x1, y1, emit = false) {
     : "#000000";
   ctx.stroke();
   ctx.closePath();
-
   if (!emit) return;
   const w = gameCanvas.clientWidth;
   const h = gameCanvas.clientHeight;
   if (w === 0 || h === 0) return;
-
   const drawData = { x0: x0 / w, y0: y0 / h, x1: x1 / w, y1: y1 / h };
   currentDrawingHistory.push(drawData);
-
-  socket.emit("game:draw", {
-    room: currentRoom,
-    data: drawData,
-  });
+  socket.emit("game:draw", { room: currentRoom.id, data: drawData });
 }
 
 function handleStart(e) {
@@ -956,7 +972,6 @@ function handleStart(e) {
     [lastX, lastY] = [pos.x, pos.y];
   }
 }
-
 function handleMove(e) {
   if (!isDrawing) return;
   e.preventDefault();
@@ -964,18 +979,15 @@ function handleMove(e) {
   drawLine(lastX, lastY, pos.x, pos.y, true);
   [lastX, lastY] = [pos.x, pos.y];
 }
-
 function handleEnd() {
   isDrawing = false;
 }
-
 function getMousePos(e) {
   const rect = gameCanvas.getBoundingClientRect();
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
   return { x: clientX - rect.left, y: clientY - rect.top };
 }
-
 gameCanvas.addEventListener("mousedown", handleStart);
 gameCanvas.addEventListener("mousemove", handleMove);
 gameCanvas.addEventListener("mouseup", handleEnd);
@@ -984,14 +996,43 @@ gameCanvas.addEventListener("touchstart", handleStart);
 gameCanvas.addEventListener("touchmove", handleMove);
 gameCanvas.addEventListener("touchend", handleEnd);
 
-function endGame(hideContainer = true) {
-  if (hideContainer) gameContainer.style.display = "none";
-  if (gameInfo) gameInfo.textContent = "";
-  if (drawingTools) drawingTools.style.display = "none";
-  if (gameCanvas) gameCanvas.style.cursor = "default";
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  updateGameButtonVisibility({});
-  updateRoundTimer(null); // Hide and clear timer
-  currentGameState = {};
-  currentDrawingHistory = [];
+// --- Hangman Specific Functions ---
+function renderHangmanState(state) {
+  if (!state || !hangmanGameContainer) return;
+
+  // Render the word display (e.g., _ A _ A S _ R _ _ T)
+  hangmanWordDisplay.innerHTML = state.displayWord
+    .map(
+      (letter) =>
+        `<div class="letter-placeholder ${letter === " " ? "space" : ""}">${
+          letter !== "_" ? letter.toUpperCase() : ""
+        }</div>`
+    )
+    .join("");
+
+  // Render incorrect letters
+  hangmanIncorrectLetters.textContent = `Incorrect: ${state.incorrectGuesses
+    .join(", ")
+    .toUpperCase()}`;
+
+  // Update the hangman drawing based on the number of incorrect guesses
+  const incorrectCount = state.incorrectGuesses.length;
+  hangmanDrawing.className = `incorrect-${incorrectCount}`;
+
+  // Update game info text
+  if (state.isGameOver) {
+    // Game over message is handled by 'game:message' event
+  } else if (state.isRoundActive) {
+    hangmanGameInfo.textContent = "Guess a letter by typing in the chat!";
+  } else {
+    if (state.creatorId === myId) {
+      hangmanGameInfo.textContent =
+        'You are the host. Press "Start Game" when ready.';
+    } else {
+      const creator = latestUsers.find((u) => u.id === state.creatorId);
+      hangmanGameInfo.textContent = `Waiting for ${
+        creator ? creator.name : "the host"
+      } to start the game.`;
+    }
+  }
 }
