@@ -813,20 +813,29 @@ function updateGameButtonVisibility(state) {
     stopGameBtnMobile.classList.remove("btn-danger");
   }
 
-  if (state && state.players) {
-    const minPlayers = state.gameType === "hangman" ? 2 : 2;
-    const canStart =
-      state.gameType === "hangman"
-        ? state.players.length === minPlayers
-        : state.players.length >= minPlayers;
+  // --- REVISED LOGIC FOR ENABLING/DISABLING BUTTON ---
+  let canStart = false;
+  // Check if we have the necessary state information
+  if (state && state.players && state.gameType) {
+    if (state.gameType === "hangman") {
+      canStart = state.players.length === 2;
+    } else {
+      // This covers 'doodle' and any other potential game types
+      canStart = state.players.length >= 2;
+    }
+  }
 
-    startGameBtn.disabled = !canStart;
-    startGameBtnMobile.disabled = !canStart;
+  // Apply the disabled state
+  startGameBtn.disabled = !canStart;
+  startGameBtnMobile.disabled = !canStart;
 
-    if (!canStart && !isGameActive && (gameInfo || hangmanGameInfo)) {
-      const infoElem = state.gameType === "doodle" ? gameInfo : hangmanGameInfo;
-      if (infoElem)
-        infoElem.textContent = `Waiting for ${minPlayers} players to start...`;
+  // Update the info message if the game is waiting to start but cannot yet
+  if (showStart && !canStart) {
+    const minPlayers = state && state.gameType === "hangman" ? 2 : 2;
+    const infoElem =
+      state && state.gameType === "doodle" ? gameInfo : hangmanGameInfo;
+    if (infoElem) {
+      infoElem.textContent = `Waiting for ${minPlayers} players to start...`;
     }
   }
 }
@@ -1055,7 +1064,7 @@ function renderHangmanState(state) {
     .toUpperCase()}`;
 
   const incorrectCount = incorrectGuesses.length;
-  hangmanDrawing.className = `hg-drawing incorrect-${incorrectCount}`;
+  hangmanDrawing.className = `incorrect-${incorrectCount}`;
 
   const isMyTurn = state.currentPlayerTurn === myId;
   input.disabled = !isMyTurn || !state.isRoundActive;
