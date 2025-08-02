@@ -491,14 +491,18 @@ function applyBackground(url) {
     localStorage.removeItem("chatBackground");
   }
 }
+
 function populateBackgroundOptions(container) {
   if (!container) return;
   container.innerHTML = "";
-  const defaultOption = document.createElement("button");
-  defaultOption.className = "background-option-default";
+
+  // UPDATED: Create the default option as a div to match styling of image tiles
+  const defaultOption = document.createElement("div");
+  defaultOption.className = "background-option background-option-default";
   defaultOption.textContent = "Default";
   defaultOption.onclick = () => applyBackground(null);
   container.appendChild(defaultOption);
+
   predefinedBackgrounds.forEach((url) => {
     const option = document.createElement("div");
     option.className = "background-option";

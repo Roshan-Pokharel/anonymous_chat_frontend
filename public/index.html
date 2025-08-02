@@ -16,6 +16,7 @@
     />
   </head>
   <body>
+    <!-- Modal for initial user profile setup -->
     <div id="userModal" class="modal" style="display: none">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -50,6 +51,7 @@
       </form>
     </div>
 
+    <!-- Modal for creating a new game room -->
     <div id="createGameModal" class="modal" style="display: none">
       <form id="createGameForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -79,6 +81,7 @@
       </form>
     </div>
 
+    <!-- Modal for entering a password to join a room -->
     <div id="passwordPromptModal" class="modal" style="display: none">
       <form id="passwordPromptForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -119,6 +122,7 @@
       </form>
     </div>
 
+    <!-- Modal for displaying the final scoreboard -->
     <div id="scoreboardModal" class="modal" style="display: none">
       <div class="modal-content">
         <h2 id="scoreboardTitle">🏆 Game Over!</h2>
@@ -129,6 +133,7 @@
       </div>
     </div>
 
+    <!-- Modal for explaining how to play the game -->
     <div id="howToPlayModal" class="modal" style="display: none">
       <div class="modal-content">
         <h2 style="color: #4f46e5; text-align: center">
@@ -158,6 +163,7 @@
       </div>
     </div>
 
+    <!-- Main modal for mobile view, containing tabs for users, game, and appearance -->
     <div id="allUsersModal" class="modal" style="display: none">
       <div class="modal-content">
         <div id="mobileModalNav">
@@ -222,6 +228,7 @@
       </div>
     </div>
 
+    <!-- Top navigation bar -->
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
@@ -230,7 +237,9 @@
       </div>
     </div>
 
+    <!-- Main application container -->
     <div class="container">
+      <!-- Desktop sidebar -->
       <div id="sidebar">
         <div id="sidebar-nav">
           <button class="sidebar-nav-btn active" data-panel="sidebar-users">
@@ -286,7 +295,9 @@
         </div>
       </div>
 
+      <!-- Main chat area -->
       <div id="chat">
+        <!-- Game container, shown when in a game room -->
         <div id="gameContainer" style="display: none">
           <div id="gameInfo"></div>
           <canvas id="gameCanvas"></canvas>
@@ -296,8 +307,10 @@
           <div id="gameOverlayMessage" class="game-overlay-message"></div>
         </div>
 
+        <!-- Message display area -->
         <div id="messages"></div>
 
+        <!-- Message input area -->
         <div id="input-area">
           <div id="typing-indicator"></div>
           <div id="error-message"></div>
@@ -315,6 +328,7 @@
       </div>
     </div>
 
+    <!-- External scripts -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="script.js"></script>
   </body>

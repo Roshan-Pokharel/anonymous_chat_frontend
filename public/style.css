@@ -445,30 +445,33 @@ body.dark-mode #typing-indicator {
 
 .background-option {
   width: 100%;
-  padding-top: 100%;
+  padding-top: 100%; /* This creates the square aspect ratio */
   border-radius: 8px;
   cursor: pointer;
   background-size: cover;
   background-position: center;
   border: 2px solid transparent;
   transition: border-color 0.2s, transform 0.2s;
+  position: relative; /* Needed for positioning the text */
 }
 .background-option:hover {
   border-color: var(--primary-accent);
   transform: scale(1.05);
 }
 
+/* UPDATED: Styling for the default background button */
 .background-option-default {
-  grid-column: span 2;
-  background: var(--user-bg);
+  background-color: var(--user-bg);
   color: var(--text-color);
   font-weight: 500;
   font-size: 14px;
-  padding: 8px;
-  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-image: none; /* Ensure no bg image is applied */
+  padding-top: 0; /* Override the aspect ratio padding */
+  height: 60px; /* Match the grid item size */
+  width: 60px;
 }
 .background-option-default:hover {
   background: var(--user-hover-bg);
