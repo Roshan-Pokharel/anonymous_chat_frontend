@@ -331,43 +331,67 @@ function addMessage(msg, type = "") {
   }
 }
 
+// --- MODIFIED: This function is completely updated for the new look ---
 function updateUserList() {
   const processList = (container) => {
-    container.innerHTML = "";
+    container.innerHTML = ""; // Clear existing list
+
+    // 1. Add Public Room button
     const publicBtn = document.createElement("div");
-    publicBtn.className = "user";
-    publicBtn.textContent = "🌐 Public Room";
+    publicBtn.className = "user public-room";
+    publicBtn.innerHTML = `🌐 Public Room`;
     publicBtn.onclick = () => {
       switchRoom("public", "🌐 Public Chat");
-      if (allUsersModal.style.display === "flex")
+      if (allUsersModal.style.display === "flex") {
         allUsersModal.style.display = "none";
+      }
     };
     container.appendChild(publicBtn);
 
+    // 2. Add each online user
     latestUsers.forEach((user) => {
-      if (user.id === myId) return;
+      if (user.id === myId) return; // Don't show myself in the list
+
       const div = document.createElement("div");
       div.className = "user";
-      div.innerHTML =
-        `<span style="color:${getGenderColor(user.gender)};">${
-          user.name
-        }${getGenderSymbol(user.gender)}${
-          user.age ? " · " + user.age : ""
-        }</span>` +
-        (unreadPrivate[user.id] ? '<span class="red-dot"></span>' : "");
+
+      // Generate a color from the user's ID for the avatar
+      const avatarColor = generateColorFromId(user.id);
+      const initial = user.name.charAt(0).toUpperCase();
+
+      div.innerHTML = `
+        <div class="user-avatar" style="background-color: ${avatarColor};">
+          ${initial}
+        </div>
+        <div class="user-info">
+          <div class="user-name" style="color:${getGenderColor(user.gender)};">
+            ${user.name}
+          </div>
+          <div class="user-details">
+            <span class="status-dot"></span>
+            <span>Online ${getGenderSymbol(user.gender)} ${
+        user.age ? "· " + user.age : ""
+      }</span>
+          </div>
+        </div>
+        ${unreadPrivate[user.id] ? '<span class="red-dot"></span>' : ""} `;
+
       div.onclick = () => {
         const privateRoomName = [myId, user.id].sort().join("-");
         switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
         delete unreadPrivate[user.id];
-        updateUserList();
-        if (allUsersModal.style.display === "flex")
+        updateUserList(); // Redraw list to remove red dot
+        if (allUsersModal.style.display === "flex") {
           allUsersModal.style.display = "none";
+        }
       };
+
       container.appendChild(div);
     });
   };
-  processList(userList);
-  processList(allUsersList);
+
+  processList(userList); // Update sidebar list
+  processList(allUsersList); // Update modal list
 }
 
 function switchRoom(roomName, title) {
@@ -397,8 +421,20 @@ function switchRoom(roomName, title) {
 }
 
 // --- Helper & UI Functions ---
+
+// NEW: Helper to generate a consistent color from a string (user ID)
+function generateColorFromId(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    hash = hash & hash;
+  }
+  const color = `hsl(${hash % 360}, 70%, 50%)`;
+  return color;
+}
+
 function getGenderSymbol(gender) {
-  return gender === "female" ? " ♀" : " ♂";
+  return gender === "female" ? "♀" : "♂";
 }
 function getGenderColor(gender) {
   return gender === "female" ? "#e75480" : "#3b82f6";
