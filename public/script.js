@@ -496,10 +496,10 @@ function populateBackgroundOptions(container) {
   if (!container) return;
   container.innerHTML = "";
 
-  // UPDATED: Create the default option as a div to match styling of image tiles
+  // Create the default option as a div to match styling of image tiles
   const defaultOption = document.createElement("div");
   defaultOption.className = "background-option background-option-default";
-  defaultOption.textContent = "Default";
+  defaultOption.innerHTML = "<span>Default</span>"; // This line is changed
   defaultOption.onclick = () => applyBackground(null);
   container.appendChild(defaultOption);
 
