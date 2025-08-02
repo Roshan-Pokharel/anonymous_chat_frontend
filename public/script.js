@@ -1036,7 +1036,11 @@ function renderHangmanState(state) {
     updateHangmanTimer(null);
   }
 
-  hangmanWordDisplay.innerHTML = state.displayWord
+  // FIX: Default to empty arrays if properties are missing before the game starts
+  const displayWord = state.displayWord || [];
+  const incorrectGuesses = state.incorrectGuesses || [];
+
+  hangmanWordDisplay.innerHTML = displayWord
     .map(
       (letter) =>
         `<div class="letter-placeholder ${letter === " " ? "space" : ""}">${
@@ -1045,11 +1049,11 @@ function renderHangmanState(state) {
     )
     .join("");
 
-  hangmanIncorrectLetters.textContent = `Incorrect: ${state.incorrectGuesses
+  hangmanIncorrectLetters.textContent = `Incorrect: ${incorrectGuesses
     .join(", ")
     .toUpperCase()}`;
 
-  const incorrectCount = state.incorrectGuesses.length;
+  const incorrectCount = incorrectGuesses.length;
   hangmanDrawing.className = `incorrect-${incorrectCount}`;
 
   const isMyTurn = state.currentPlayerTurn === myId;
