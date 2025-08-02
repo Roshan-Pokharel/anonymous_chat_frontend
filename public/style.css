@@ -806,9 +806,6 @@ body.dark-mode #typing-indicator {
     margin-bottom: 0;
     padding-bottom: 100px;
   }
-  #gameTimer {
-    top: 50px;
-  }
 
   #input-area {
     position: fixed;
