@@ -58,6 +58,7 @@ const sidebarPanels = document.querySelectorAll(".sidebar-panel");
 const gameContainer = document.getElementById("gameContainer");
 const gameCanvas = document.getElementById("gameCanvas");
 const gameInfo = document.getElementById("gameInfo");
+const gameTimer = document.getElementById("gameTimer"); // New Timer Element
 const drawingTools = document.getElementById("drawingTools");
 const clearCanvasBtn = document.getElementById("clearCanvasBtn");
 const gameOverlayMessage = document.getElementById("gameOverlayMessage");
@@ -95,6 +96,7 @@ let lastY = 0;
 let currentGameState = {};
 let overlayTimer;
 let currentDrawingHistory = [];
+let roundCountdownInterval = null; // New timer interval
 
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
@@ -593,6 +595,30 @@ function showGameOverlayMessage(text, duration = 2500) {
   }, duration);
 }
 
+// New function to handle the round timer
+function updateRoundTimer(endTime) {
+  clearInterval(roundCountdownInterval);
+  if (!endTime) {
+    gameTimer.style.display = "none";
+    return;
+  }
+
+  gameTimer.style.display = "block";
+
+  const update = () => {
+    const timeLeft = Math.round((endTime - Date.now()) / 1000);
+    if (timeLeft <= 0) {
+      gameTimer.textContent = "0";
+      clearInterval(roundCountdownInterval);
+    } else {
+      gameTimer.textContent = timeLeft;
+    }
+  };
+
+  update();
+  roundCountdownInterval = setInterval(update, 1000);
+}
+
 socket.on("game:roomsList", updateGameRoomList);
 socket.on("game:joined", (roomData) => {
   if (passwordPromptModal.style.display === "flex") {
@@ -618,6 +644,7 @@ socket.on("game:state", (state) => {
   currentGameState = state;
   gameContainer.style.display = "flex";
   updateGameButtonVisibility(state);
+
   if (state.isRoundActive) {
     const isDrawer = state.drawer && state.drawer.id === myId;
     gameInfo.textContent = isDrawer
@@ -625,7 +652,12 @@ socket.on("game:state", (state) => {
       : `${state.drawer.name} is drawing...`;
     drawingTools.style.display = isDrawer ? "flex" : "none";
     gameCanvas.style.cursor = isDrawer ? "crosshair" : "not-allowed";
+    // Start or update the timer
+    if (state.roundEndTime) {
+      updateRoundTimer(state.roundEndTime);
+    }
   } else {
+    updateRoundTimer(null); // Hide timer if round is not active
     if (state.creatorId === myId) {
       gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
     } else {
@@ -959,6 +991,7 @@ function endGame(hideContainer = true) {
   if (gameCanvas) gameCanvas.style.cursor = "default";
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   updateGameButtonVisibility({});
+  updateRoundTimer(null); // Hide and clear timer
   currentGameState = {};
   currentDrawingHistory = [];
 }
