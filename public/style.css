@@ -125,8 +125,7 @@ body {
 }
 
 #userList,
-#gameRoomListDesktop,
-.background-options-grid {
+#gameRoomListDesktop {
   flex: 1;
   overflow-y: auto;
   padding-right: 8px; /* For scrollbar */
@@ -138,7 +137,7 @@ body {
   padding: 16px;
   box-sizing: border-box;
   background: var(--bg-color);
-  position: relative; /* Needed for game container */
+  position: relative;
 }
 
 #roomTitle {
@@ -174,7 +173,7 @@ body {
 }
 .msg.system {
   justify-content: center;
-} /* For system messages like guesses */
+}
 
 .bubble {
   padding: 10px 16px;
@@ -189,7 +188,7 @@ body {
   background: var(--primary-accent);
   color: #fff;
   border-bottom-right-radius: 6px;
-  padding-right: 30px; /* Space for read receipt */
+  padding-right: 30px;
 }
 
 .msg.other .bubble {
@@ -199,7 +198,7 @@ body {
 }
 
 .msg.system .bubble {
-  background: #facc15; /* Yellow for system/game messages */
+  background: #facc15;
   color: #422006;
   font-style: italic;
   text-align: center;
@@ -322,14 +321,14 @@ body.dark-mode .user:hover {
   justify-content: center;
   font-weight: 700;
   font-size: 18px;
-  flex-shrink: 0; /* Prevents avatar from shrinking */
+  flex-shrink: 0;
 }
 
 .user-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* For text-overflow */
+  overflow: hidden;
 }
 
 .user-name {
@@ -402,7 +401,7 @@ body.dark-mode .user-details {
 }
 
 #showUsersBtn {
-  display: none; /* Hidden on desktop */
+  display: none;
   background: var(--primary-accent);
   color: #fff;
   border: none;
@@ -436,9 +435,12 @@ body.dark-mode #typing-indicator {
 }
 
 .background-options-grid {
+  flex: 1;
+  overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
   gap: 8px;
+  padding-right: 8px;
 }
 
 .background-option {
@@ -457,12 +459,16 @@ body.dark-mode #typing-indicator {
 }
 
 .background-option-default {
-  grid-column: 1 / -1;
+  grid-column: span 2;
   background: var(--user-bg);
   color: var(--text-color);
   font-weight: 500;
   font-size: 14px;
   padding: 8px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .background-option-default:hover {
   background: var(--user-hover-bg);
@@ -474,11 +480,11 @@ body.dark-mode #typing-indicator {
   top: 16px;
   left: 16px;
   right: 16px;
-  bottom: calc(16px + 68px); /* Adjust for input area height */
+  bottom: calc(16px + 68px);
   z-index: 5;
   display: flex;
   flex-direction: column;
-  pointer-events: none; /* Pass clicks through to chat unless on canvas/tools */
+  pointer-events: none;
 }
 #gameCanvas {
   width: 100%;
@@ -487,7 +493,7 @@ body.dark-mode #typing-indicator {
   border-radius: 12px;
   border: 2px dashed var(--primary-accent);
   cursor: crosshair;
-  pointer-events: auto; /* Receive clicks on the canvas */
+  pointer-events: auto;
 }
 #gameInfo {
   position: absolute;
@@ -551,7 +557,23 @@ body.dark-mode #typing-indicator {
   margin-bottom: 8px;
 }
 
-/* Game Room List Styles */
+.game-toggle-btn {
+  width: 100%;
+  margin-bottom: 12px;
+  font-size: 16px;
+  text-align: left;
+  padding: 12px;
+}
+
+.game-controls-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-left: 2px solid var(--primary-accent);
+  padding-left: 12px;
+  margin-left: 4px;
+}
+
 #gameRoomListMobile {
   display: flex;
   flex-direction: column;
@@ -579,8 +601,8 @@ body.dark-mode #typing-indicator {
 .game-room-item button {
   padding: 6px 12px;
   font-size: 14px;
-  flex: 0 0 25%; /* Does not grow or shrink, basis of 25% */
-  max-width: 80px; /* Ensures the button doesn't become too wide */
+  flex: 0 0 25%;
+  max-width: 80px;
   text-align: center;
   background-color: var(--secondary-accent);
 }
@@ -765,8 +787,8 @@ body.dark-mode #typing-indicator {
   }
 
   #gameContainer {
-    top: calc(16px + 48px); /* Below topbar */
-    bottom: calc(16px + 60px); /* Above input area */
+    top: calc(16px + 48px);
+    bottom: calc(16px + 60px);
   }
 }
 

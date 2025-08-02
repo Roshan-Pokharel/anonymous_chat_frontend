@@ -33,9 +33,9 @@ const passwordPromptModal = document.getElementById("passwordPromptModal");
 const passwordPromptForm = document.getElementById("passwordPromptForm");
 const joinPasswordInput = document.getElementById("joinPasswordInput");
 const cancelJoinBtn = document.getElementById("cancelJoinBtn");
-const passwordError = document.getElementById("passwordError"); // NEW: Password error element
+const passwordError = document.getElementById("passwordError");
 
-// NEW: How to Play Modal Elements
+// How to Play Modal Elements
 const howToPlayModal = document.getElementById("howToPlayModal");
 const closeHowToPlayBtn = document.getElementById("closeHowToPlayBtn");
 const howToPlayBtnDesktop = document.getElementById("howToPlayBtnDesktop");
@@ -71,6 +71,8 @@ const startGameBtn = document.getElementById("startGameBtn");
 const stopGameBtn = document.getElementById("stopGameBtn");
 const startGameBtnMobile = document.getElementById("startGameBtnMobile");
 const stopGameBtnMobile = document.getElementById("stopGameBtnMobile");
+const doodleDashToggleBtn = document.getElementById("doodleDashToggleBtn");
+const doodleDashControls = document.getElementById("doodleDashControls");
 
 // --- Application & Game State ---
 let latestUsers = [];
@@ -81,7 +83,7 @@ let isTyping = false;
 let typingTimer;
 const TYPING_TIMER_LENGTH = 1500;
 let joiningRoomId = null;
-const LOGIN_EXPIRATION_MS = 5 * 60 * 1000; // NEW: 5 minutes for login persistence
+const LOGIN_EXPIRATION_MS = 5 * 60 * 1000;
 
 // Canvas/Drawing State
 const ctx = gameCanvas.getContext("2d");
@@ -189,6 +191,11 @@ sidebarNav.addEventListener("click", (e) => {
   sidebarPanels.forEach((panel) => {
     panel.classList.toggle("active", panel.id === panelId);
   });
+});
+
+doodleDashToggleBtn.addEventListener("click", () => {
+  doodleDashControls.style.display =
+    doodleDashControls.style.display === "none" ? "flex" : "none";
 });
 
 // --- Socket Event Handlers ---

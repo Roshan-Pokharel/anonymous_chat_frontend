@@ -236,7 +236,7 @@
           <button class="sidebar-nav-btn active" data-panel="sidebar-users">
             👥
           </button>
-          <button class="sidebar-nav-btn" data-panel="sidebar-game">✏️</button>
+          <button class="sidebar-nav-btn" data-panel="sidebar-game">🎮</button>
           <button class="sidebar-nav-btn" data-panel="sidebar-appearance">
             🎨
           </button>
@@ -244,36 +244,36 @@
         <div id="sidebar-content">
           <div id="sidebar-users" class="sidebar-panel active">
             <div id="userListContainer">
-              <h3 style="margin-bottom: 12px">Online Users</h3>
+              <h3 style="margin: 0 0 12px 0">Online Users</h3>
               <div id="userList"></div>
             </div>
           </div>
 
           <div id="sidebar-game" class="sidebar-panel">
             <div class="game-controls-desktop">
-              <h4>Doodle Dash</h4>
-              <button
-                id="howToPlayBtnDesktop"
-                class="btn-secondary"
-                style="margin-bottom: 8px"
-              >
-                How to Play
+              <button id="doodleDashToggleBtn" class="game-toggle-btn">
+                ✏️ Doodle Dash
               </button>
-              <button id="createGameRoomBtnDesktop">Create Game Room</button>
-              <h4 class="room-list-header">Available Rooms</h4>
-              <div id="gameRoomListDesktop">
-                <p class="no-rooms-msg">No active game rooms.</p>
+              <div id="doodleDashControls" class="game-controls-container">
+                <button id="howToPlayBtnDesktop" class="btn-secondary">
+                  How to Play
+                </button>
+                <button id="createGameRoomBtnDesktop">Create Game Room</button>
+                <h4 class="room-list-header">Available Rooms</h4>
+                <div id="gameRoomListDesktop">
+                  <p class="no-rooms-msg">No active rooms.</p>
+                </div>
+                <button id="startGameBtn" style="display: none">
+                  Start Game
+                </button>
+                <button
+                  id="stopGameBtn"
+                  class="btn-secondary"
+                  style="display: none"
+                >
+                  Stop Game
+                </button>
               </div>
-              <button id="startGameBtn" style="display: none">
-                Start Game
-              </button>
-              <button
-                id="stopGameBtn"
-                class="btn-secondary"
-                style="display: none"
-              >
-                Stop Game
-              </button>
             </div>
           </div>
 
