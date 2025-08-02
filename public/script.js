@@ -44,6 +44,7 @@ const howToPlayBtnMobile = document.getElementById("howToPlayBtnMobile");
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
 const modalTabs = document.querySelectorAll(".modal-tab-content");
+const mobileModalContent = document.getElementById("mobileModalContent");
 const backgroundOptionsMobileContainer = document.getElementById(
   "backgroundOptionsMobile"
 );
@@ -113,6 +114,8 @@ window.addEventListener("load", () => {
   if (savedBackground) applyBackground(savedBackground);
   adjustHeightForKeyboard();
   populateBackgroundOptions(backgroundOptionsContainer);
+  // FIX 3: Initialize swipe listeners for the mobile modal
+  setupMobileModalSwipe();
 });
 window.addEventListener("resize", () => {
   adjustHeightForKeyboard();
@@ -167,17 +170,67 @@ scoreboardModal.addEventListener("click", (e) => {
 });
 closeScoreboardBtn.onclick = () => (scoreboardModal.style.display = "none");
 
-mobileModalNav.addEventListener("click", (e) => {
-  if (e.target.tagName !== "BUTTON") return;
-  const tabName = e.target.dataset.tab;
+// --- Mobile Tab Navigation ---
+const mobileTabOrder = ["users", "game", "appearance"];
+function switchMobileTab(tabName) {
+  if (!mobileTabOrder.includes(tabName)) return;
+
   document
     .querySelectorAll(".modal-nav-btn")
     .forEach((btn) => btn.classList.remove("active"));
-  e.target.classList.add("active");
+  document
+    .querySelector(`.modal-nav-btn[data-tab="${tabName}"]`)
+    .classList.add("active");
+
   modalTabs.forEach((tab) => {
     tab.classList.toggle("active", tab.id === `${tabName}Tab`);
   });
+}
+
+mobileModalNav.addEventListener("click", (e) => {
+  if (e.target.tagName !== "BUTTON") return;
+  const tabName = e.target.dataset.tab;
+  switchMobileTab(tabName);
 });
+
+// FIX 3: Swipe navigation for mobile modal
+function setupMobileModalSwipe() {
+  let touchStartX = 0;
+  let touchEndX = 0;
+  const swipeThreshold = 50; // Minimum distance for a swipe
+
+  mobileModalContent.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  });
+
+  mobileModalContent.addEventListener("touchend", (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipeGesture();
+  });
+
+  function handleSwipeGesture() {
+    const deltaX = touchEndX - touchStartX;
+    if (Math.abs(deltaX) < swipeThreshold) return; // Not a significant swipe
+
+    const currentActiveBtn = document.querySelector(".modal-nav-btn.active");
+    if (!currentActiveBtn) return;
+
+    const currentTabName = currentActiveBtn.dataset.tab;
+    const currentIndex = mobileTabOrder.indexOf(currentTabName);
+
+    if (deltaX < 0) {
+      // Swiped left
+      const nextIndex = (currentIndex + 1) % mobileTabOrder.length;
+      switchMobileTab(mobileTabOrder[nextIndex]);
+    } else {
+      // Swiped right
+      const prevIndex =
+        (currentIndex - 1 + mobileTabOrder.length) % mobileTabOrder.length;
+      switchMobileTab(mobileTabOrder[prevIndex]);
+    }
+  }
+}
+// --- End of Fix 3 ---
 
 sidebarNav.addEventListener("click", (e) => {
   if (e.target.tagName !== "BUTTON") return;
@@ -703,14 +756,31 @@ function updateGameButtonVisibility(state) {
   const isGameActive = state && state.isRoundActive;
   const isCreator = state && state.creatorId === myId;
   const isGameRoom = currentRoom && currentRoom.startsWith("game-");
-  startGameBtn.style.display =
-    isGameRoom && isCreator && !isGameActive ? "block" : "none";
-  stopGameBtn.style.display =
-    isGameRoom && isCreator && isGameActive ? "block" : "none";
-  startGameBtnMobile.style.display =
-    isGameRoom && isCreator && !isGameActive ? "block" : "none";
-  stopGameBtnMobile.style.display =
-    isGameRoom && isCreator && isGameActive ? "block" : "none";
+
+  const showStart = isGameRoom && isCreator && !isGameActive;
+  const showStop = isGameRoom && isCreator && isGameActive;
+
+  startGameBtn.style.display = showStart ? "block" : "none";
+  stopGameBtn.style.display = showStop ? "block" : "none";
+  startGameBtnMobile.style.display = showStart ? "block" : "none";
+  stopGameBtnMobile.style.display = showStop ? "block" : "none";
+
+  // FIX 2: Add/remove color classes for game buttons
+  if (showStart) {
+    startGameBtn.classList.add("btn-start");
+    startGameBtnMobile.classList.add("btn-start");
+  } else {
+    startGameBtn.classList.remove("btn-start");
+    startGameBtnMobile.classList.remove("btn-start");
+  }
+  if (showStop) {
+    stopGameBtn.classList.add("btn-danger");
+    stopGameBtnMobile.classList.add("btn-danger");
+  } else {
+    stopGameBtn.classList.remove("btn-danger");
+    stopGameBtnMobile.classList.remove("btn-danger");
+  }
+
   if (state && state.players) {
     const canStart = state.players.length >= 2;
     startGameBtn.disabled = !canStart;

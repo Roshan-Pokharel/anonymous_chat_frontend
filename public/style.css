@@ -23,6 +23,11 @@
   --error-color: #ef4444;
   --game-info-bg: rgba(255, 255, 255, 0.85);
   --online-status-color: #22c55e;
+  /* FIX 2: Added colors for start and stop buttons */
+  --start-color: #22c55e;
+  --start-color-hover: #16a34a;
+  --danger-color: #ef4444;
+  --danger-color-hover: #dc2626;
 }
 
 /* Dark Mode Styles */
@@ -286,6 +291,20 @@ button.btn-secondary {
 }
 button.btn-secondary:hover {
   background: var(--btn-secondary-hover-bg);
+}
+
+/* FIX 2: Added styles for start (green) and danger (red) buttons */
+button.btn-start:not(:disabled) {
+  background: var(--start-color);
+}
+button.btn-start:not(:disabled):hover {
+  background: var(--start-color-hover);
+}
+button.btn-danger {
+  background: var(--danger-color);
+}
+button.btn-danger:hover {
+  background: var(--danger-color-hover);
 }
 
 .user {
@@ -594,6 +613,8 @@ body.dark-mode #typing-indicator {
   padding: 10px;
   background: var(--user-bg);
   border-radius: 8px;
+  /* FIX 1: Added margin to create space between room items */
+  margin-bottom: 8px;
 }
 .game-room-item span {
   font-weight: 500;
