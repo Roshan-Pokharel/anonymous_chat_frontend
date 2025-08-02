@@ -78,6 +78,7 @@ const stopGameBtnMobile = document.getElementById("stopGameBtnMobile");
 
 // Hangman Game Elements
 const hangmanGameContainer = document.getElementById("hangmanGameContainer");
+const hangmanTimer = document.getElementById("hangmanTimer");
 const hangmanDrawing = document.getElementById("hangmanDrawing");
 const hangmanWordDisplay = document.getElementById("hangmanWordDisplay");
 const hangmanIncorrectLetters = document.getElementById(
@@ -105,6 +106,7 @@ let currentGameState = {};
 let overlayTimer;
 let currentDrawingHistory = [];
 let roundCountdownInterval = null;
+let hangmanCountdownInterval = null;
 
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
@@ -567,6 +569,7 @@ const openHowToPlayModal = () => {
       : `
         <ul>
           <li>This is a 2-player game. Players take turns guessing letters.</li>
+          <li>Each player has <strong>20 seconds</strong> to make a guess. If time runs out, it counts as an incorrect guess.</li>
           <li>If you guess a correct letter, you get to guess again.</li>
           <li>If you guess an incorrect letter, your turn ends and the other player gets to guess.</li>
           <li>The player who correctly guesses the final letter to complete the word wins the round!</li>
@@ -612,6 +615,26 @@ function updateRoundTimer(endTime) {
   };
   update();
   roundCountdownInterval = setInterval(update, 1000);
+}
+
+function updateHangmanTimer(endTime) {
+  clearInterval(hangmanCountdownInterval);
+  if (!endTime) {
+    hangmanTimer.style.display = "none";
+    return;
+  }
+  hangmanTimer.style.display = "block";
+  const update = () => {
+    const timeLeft = Math.round((endTime - Date.now()) / 1000);
+    if (timeLeft <= 0) {
+      hangmanTimer.textContent = "0";
+      clearInterval(hangmanCountdownInterval);
+    } else {
+      hangmanTimer.textContent = timeLeft;
+    }
+  };
+  update();
+  hangmanCountdownInterval = setInterval(update, 1000);
 }
 
 // --- Socket Game Event Handlers ---
@@ -791,9 +814,14 @@ function updateGameButtonVisibility(state) {
 
   if (state && state.players) {
     const minPlayers = state.gameType === "hangman" ? 2 : 2;
-    const canStart = state.players.length >= minPlayers;
+    const canStart =
+      state.gameType === "hangman"
+        ? state.players.length === minPlayers
+        : state.players.length >= minPlayers;
+
     startGameBtn.disabled = !canStart;
     startGameBtnMobile.disabled = !canStart;
+
     if (!canStart && !isGameActive && (gameInfo || hangmanGameInfo)) {
       const infoElem = state.gameType === "doodle" ? gameInfo : hangmanGameInfo;
       if (infoElem)
@@ -885,6 +913,7 @@ function endGame(hideContainers = true) {
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   updateGameButtonVisibility({});
   updateRoundTimer(null);
+  updateHangmanTimer(null);
   currentGameState = {};
   currentDrawingHistory = [];
   input.placeholder = "Type your message or guess...";
@@ -1000,6 +1029,12 @@ gameCanvas.addEventListener("touchend", handleEnd);
 // --- Hangman Specific Functions ---
 function renderHangmanState(state) {
   if (!state || !hangmanGameContainer) return;
+
+  if (state.isRoundActive && state.turnEndTime) {
+    updateHangmanTimer(state.turnEndTime);
+  } else {
+    updateHangmanTimer(null);
+  }
 
   hangmanWordDisplay.innerHTML = state.displayWord
     .map(
