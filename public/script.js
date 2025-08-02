@@ -163,14 +163,12 @@ form.addEventListener("submit", (e) => {
   isTyping = false;
   socket.emit("stop typing", { room: currentRoom.id });
 
-  // If in a hangman game, submit the input as a guess
   if (
     currentGameState.gameType === "hangman" &&
     currentGameState.isRoundActive
   ) {
     socket.emit("hangman:guess", { room: currentRoom.id, letter: text });
   } else {
-    // Otherwise, send as a regular chat message
     socket.emit("chat message", { room: currentRoom.id, text: text });
   }
 
@@ -568,10 +566,10 @@ const openHowToPlayModal = () => {
     `
       : `
         <ul>
-          <li>A secret word is chosen, and players must guess it letter by letter.</li>
-          <li>Type a single letter in the chat to make a guess.</li>
-          <li>Each incorrect guess adds another part to the hangman drawing.</li>
-          <li>Guess the word before the hangman is complete (6 incorrect guesses) to win the round!</li>
+          <li>This is a 2-player game. Players take turns guessing letters.</li>
+          <li>If you guess a correct letter, you get to guess again.</li>
+          <li>If you guess an incorrect letter, your turn ends and the other player gets to guess.</li>
+          <li>The player who correctly guesses the final letter to complete the word wins the round!</li>
         </ul>
     `;
   howToPlayModal.style.display = "flex";
@@ -720,7 +718,7 @@ createGameForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const roomName = roomNameInput.value.trim();
   const password = roomPasswordInput.value.trim();
-  const gameType = createGameForm.gameType.value; // Get selected game type
+  const gameType = createGameForm.gameType.value;
   if (roomName) {
     socket.emit("game:create", { roomName, password, gameType });
     createGameModal.style.display = "none";
@@ -792,14 +790,14 @@ function updateGameButtonVisibility(state) {
   }
 
   if (state && state.players) {
-    const minPlayers = state.gameType === "doodle" ? 2 : 1;
+    const minPlayers = state.gameType === "hangman" ? 2 : 2;
     const canStart = state.players.length >= minPlayers;
     startGameBtn.disabled = !canStart;
     startGameBtnMobile.disabled = !canStart;
     if (!canStart && !isGameActive && (gameInfo || hangmanGameInfo)) {
       const infoElem = state.gameType === "doodle" ? gameInfo : hangmanGameInfo;
       if (infoElem)
-        infoElem.textContent = `Waiting for at least ${minPlayers} player(s) to start...`;
+        infoElem.textContent = `Waiting for ${minPlayers} players to start...`;
     }
   }
 }
@@ -819,9 +817,12 @@ function updateGameRoomList(rooms) {
       const gameIcon = room.gameType === "doodle" ? "✏️" : "🤔";
       item.innerHTML = `<span title="${room.name} (by ${room.creatorName})">${gameIcon} ${lockIcon}${room.name} (${room.players.length}p)</span><button data-room-id="${room.id}">Join</button>`;
       const joinBtn = item.querySelector("button");
-      if (room.inProgress) {
+      if (
+        room.inProgress ||
+        (room.gameType === "hangman" && room.players.length >= 2)
+      ) {
         joinBtn.disabled = true;
-        joinBtn.textContent = "Active";
+        joinBtn.textContent = room.inProgress ? "Active" : "Full";
       }
       joinBtn.onclick = () => {
         if (room.hasPassword) {
@@ -1000,7 +1001,6 @@ gameCanvas.addEventListener("touchend", handleEnd);
 function renderHangmanState(state) {
   if (!state || !hangmanGameContainer) return;
 
-  // Render the word display (e.g., _ A _ A S _ R _ _ T)
   hangmanWordDisplay.innerHTML = state.displayWord
     .map(
       (letter) =>
@@ -1010,20 +1010,34 @@ function renderHangmanState(state) {
     )
     .join("");
 
-  // Render incorrect letters
   hangmanIncorrectLetters.textContent = `Incorrect: ${state.incorrectGuesses
     .join(", ")
     .toUpperCase()}`;
 
-  // Update the hangman drawing based on the number of incorrect guesses
   const incorrectCount = state.incorrectGuesses.length;
   hangmanDrawing.className = `incorrect-${incorrectCount}`;
 
-  // Update game info text
+  const isMyTurn = state.currentPlayerTurn === myId;
+  input.disabled = !isMyTurn || !state.isRoundActive;
+
   if (state.isGameOver) {
-    // Game over message is handled by 'game:message' event
+    hangmanGameInfo.textContent = state.winner
+      ? `🎉 ${state.winner.name} won!`
+      : "😥 Game over!";
+    input.placeholder = "Starting new round soon...";
   } else if (state.isRoundActive) {
-    hangmanGameInfo.textContent = "Guess a letter by typing in the chat!";
+    const currentPlayer = latestUsers.find(
+      (u) => u.id === state.currentPlayerTurn
+    );
+    if (isMyTurn) {
+      hangmanGameInfo.textContent = "Your turn to guess!";
+      input.placeholder = "Guess a letter...";
+    } else {
+      hangmanGameInfo.textContent = `Waiting for ${
+        currentPlayer ? currentPlayer.name : "other player"
+      } to guess...`;
+      input.placeholder = "Not your turn...";
+    }
   } else {
     if (state.creatorId === myId) {
       hangmanGameInfo.textContent =
@@ -1034,5 +1048,6 @@ function renderHangmanState(state) {
         creator ? creator.name : "the host"
       } to start the game.`;
     }
+    input.placeholder = "Type your message...";
   }
 }
