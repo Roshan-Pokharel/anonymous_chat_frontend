@@ -785,59 +785,63 @@ clearCanvasBtn.addEventListener("click", () => {
   socket.emit("game:clear_canvas", currentRoom.id);
 });
 
+/**
+ * REWRITTEN: This function updates the visibility and state of game control buttons.
+ * It's now more direct and less prone to logical errors.
+ * @param {object} state The current game state from the server.
+ */
 function updateGameButtonVisibility(state) {
-  const isGameActive = state && state.isRoundActive;
   const isCreator = state && state.creatorId === myId;
   const isGameRoom = currentRoom.id && currentRoom.id.startsWith("game-");
+  const isGameActive = state && state.isRoundActive;
 
-  const showStart = isGameRoom && isCreator && !isGameActive;
-  const showStop = isGameRoom && isCreator && isGameActive;
+  // Default to hiding all buttons
+  startGameBtn.style.display = "none";
+  startGameBtnMobile.style.display = "none";
+  stopGameBtn.style.display = "none";
+  stopGameBtnMobile.style.display = "none";
 
-  startGameBtn.style.display = showStart ? "block" : "none";
-  stopGameBtn.style.display = showStop ? "block" : "none";
-  startGameBtnMobile.style.display = showStart ? "block" : "none";
-  stopGameBtnMobile.style.display = showStop ? "block" : "none";
-
-  if (showStart) {
-    startGameBtn.classList.add("btn-start");
-    startGameBtnMobile.classList.add("btn-start");
-  } else {
-    startGameBtn.classList.remove("btn-start");
-    startGameBtnMobile.classList.remove("btn-start");
-  }
-  if (showStop) {
-    stopGameBtn.classList.add("btn-danger");
-    stopGameBtnMobile.classList.add("btn-danger");
-  } else {
-    stopGameBtn.classList.remove("btn-danger");
-    stopGameBtnMobile.classList.remove("btn-danger");
-  }
-
-  // --- REVISED LOGIC FOR ENABLING/DISABLING BUTTON ---
-  let canStart = false;
-  // Check if we have the necessary state information
-  if (state && state.players && state.gameType) {
-    if (state.gameType === "hangman") {
-      canStart = state.players.length === 2;
+  if (isGameRoom && isCreator) {
+    if (isGameActive) {
+      // --- Game is active: Show STOP button ---
+      stopGameBtn.style.display = "block";
+      stopGameBtnMobile.style.display = "block";
     } else {
-      // This covers 'doodle' and any other potential game types
-      canStart = state.players.length >= 2;
+      // --- Game is in lobby: Show START button ---
+      startGameBtn.style.display = "block";
+      startGameBtnMobile.style.display = "block";
+
+      // Determine if the START button should be enabled
+      let canStart = false;
+      if (state.gameType === "hangman") {
+        canStart = state.players && state.players.length === 2;
+      } else {
+        // 'doodle' or other games
+        canStart = state.players && state.players.length >= 2;
+      }
+      startGameBtn.disabled = !canStart;
+      startGameBtnMobile.disabled = !canStart;
+
+      // Update info message if waiting for players
+      if (!canStart) {
+        const minPlayers = state.gameType === "hangman" ? 2 : 2;
+        const infoElem =
+          state.gameType === "doodle" ? gameInfo : hangmanGameInfo;
+        if (infoElem) {
+          infoElem.textContent = `Waiting for ${minPlayers} players to start...`;
+        }
+      }
     }
   }
 
-  // Apply the disabled state
-  startGameBtn.disabled = !canStart;
-  startGameBtnMobile.disabled = !canStart;
-
-  // Update the info message if the game is waiting to start but cannot yet
-  if (showStart && !canStart) {
-    const minPlayers = state && state.gameType === "hangman" ? 2 : 2;
-    const infoElem =
-      state && state.gameType === "doodle" ? gameInfo : hangmanGameInfo;
-    if (infoElem) {
-      infoElem.textContent = `Waiting for ${minPlayers} players to start...`;
-    }
-  }
+  // Update button styling classes
+  startGameBtn.classList.toggle("btn-start", !startGameBtn.disabled);
+  startGameBtnMobile.classList.toggle(
+    "btn-start",
+    !startGameBtnMobile.disabled
+  );
+  stopGameBtn.classList.add("btn-danger");
+  stopGameBtnMobile.classList.add("btn-danger");
 }
 
 function updateGameRoomList(rooms) {
@@ -852,7 +856,7 @@ function updateGameRoomList(rooms) {
       const item = document.createElement("div");
       item.className = "game-room-item";
       const lockIcon = room.hasPassword ? "🔒 " : "";
-      const gameIcon = room.gameType === "doodle" ? "✏️" : "🤔";
+      const gameIcon = room.gameType === "doodle" ? "✏️" : "�";
       item.innerHTML = `<span title="${room.name} (by ${room.creatorName})">${gameIcon} ${lockIcon}${room.name} (${room.players.length}p)</span><button data-room-id="${room.id}">Join</button>`;
       const joinBtn = item.querySelector("button");
       if (
@@ -1064,6 +1068,7 @@ function renderHangmanState(state) {
     .toUpperCase()}`;
 
   const incorrectCount = incorrectGuesses.length;
+  // This sets the class on the hangman drawing container, which the CSS uses to show the parts
   hangmanDrawing.className = `incorrect-${incorrectCount}`;
 
   const isMyTurn = state.currentPlayerTurn === myId;
@@ -1090,8 +1095,10 @@ function renderHangmanState(state) {
     }
   } else {
     if (state.creatorId === myId) {
-      hangmanGameInfo.textContent =
-        'You are the host. Press "Start Game" when ready.';
+      // The game hasn't started, and this user is the creator.
+      // The message is handled by updateGameButtonVisibility, so we can leave this blank
+      // or set a default message.
+      hangmanGameInfo.textContent = 'Press "Start Game" when ready.';
     } else {
       const creator = latestUsers.find((u) => u.id === state.creatorId);
       hangmanGameInfo.textContent = `Waiting for ${
