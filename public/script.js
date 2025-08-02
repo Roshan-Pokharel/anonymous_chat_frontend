@@ -1,4 +1,5 @@
 // Establish connection to the Socket.IO server
+// Use your actual server URL here. For local testing, it might be "http://localhost:3000"
 const socket = io("https://anonymous-chat-backend-1.onrender.com");
 
 // --- DOM Element Selectors ---
@@ -1036,7 +1037,7 @@ function renderHangmanState(state) {
     updateHangmanTimer(null);
   }
 
-  // FIX: Default to empty arrays if properties are missing before the game starts
+  // Default to empty arrays if properties are missing before the game starts
   const displayWord = state.displayWord || [];
   const incorrectGuesses = state.incorrectGuesses || [];
 
@@ -1054,7 +1055,7 @@ function renderHangmanState(state) {
     .toUpperCase()}`;
 
   const incorrectCount = incorrectGuesses.length;
-  hangmanDrawing.className = `incorrect-${incorrectCount}`;
+  hangmanDrawing.className = `hg-drawing incorrect-${incorrectCount}`;
 
   const isMyTurn = state.currentPlayerTurn === myId;
   input.disabled = !isMyTurn || !state.isRoundActive;
@@ -1071,6 +1072,7 @@ function renderHangmanState(state) {
     if (isMyTurn) {
       hangmanGameInfo.textContent = "Your turn to guess!";
       input.placeholder = "Guess a letter...";
+      input.focus();
     } else {
       hangmanGameInfo.textContent = `Waiting for ${
         currentPlayer ? currentPlayer.name : "other player"
