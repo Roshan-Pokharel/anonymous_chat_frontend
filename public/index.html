@@ -232,34 +232,57 @@
 
     <div class="container">
       <div id="sidebar">
-        <div id="userListContainer" style="flex: 1; overflow-y: auto">
-          <h3 style="margin-bottom: 12px">👥 Online Users</h3>
-          <div id="userList"></div>
-        </div>
-
-        <div class="game-controls-desktop">
-          <h4>✏️ Doodle Dash</h4>
-          <button
-            id="howToPlayBtnDesktop"
-            class="btn-secondary"
-            style="margin-bottom: 8px"
-          >
-            How to Play
+        <div id="sidebar-nav">
+          <button class="sidebar-nav-btn active" data-panel="sidebar-users">
+            👥
           </button>
-          <button id="createGameRoomBtnDesktop">Create Game Room</button>
-          <h4 class="room-list-header">Available Rooms</h4>
-          <div id="gameRoomListDesktop">
-            <p class="no-rooms-msg">No active game rooms.</p>
+          <button class="sidebar-nav-btn" data-panel="sidebar-game">✏️</button>
+          <button class="sidebar-nav-btn" data-panel="sidebar-appearance">
+            🎨
+          </button>
+        </div>
+        <div id="sidebar-content">
+          <div id="sidebar-users" class="sidebar-panel active">
+            <div id="userListContainer">
+              <h3 style="margin-bottom: 12px">Online Users</h3>
+              <div id="userList"></div>
+            </div>
           </div>
-          <button id="startGameBtn" style="display: none">Start Game</button>
-          <button id="stopGameBtn" class="btn-secondary" style="display: none">
-            Stop Game
-          </button>
-        </div>
 
-        <div class="background-settings">
-          <h4>🎨 Room Background</h4>
-          <div id="backgroundOptions" class="background-options-grid"></div>
+          <div id="sidebar-game" class="sidebar-panel">
+            <div class="game-controls-desktop">
+              <h4>Doodle Dash</h4>
+              <button
+                id="howToPlayBtnDesktop"
+                class="btn-secondary"
+                style="margin-bottom: 8px"
+              >
+                How to Play
+              </button>
+              <button id="createGameRoomBtnDesktop">Create Game Room</button>
+              <h4 class="room-list-header">Available Rooms</h4>
+              <div id="gameRoomListDesktop">
+                <p class="no-rooms-msg">No active game rooms.</p>
+              </div>
+              <button id="startGameBtn" style="display: none">
+                Start Game
+              </button>
+              <button
+                id="stopGameBtn"
+                class="btn-secondary"
+                style="display: none"
+              >
+                Stop Game
+              </button>
+            </div>
+          </div>
+
+          <div id="sidebar-appearance" class="sidebar-panel">
+            <div class="background-settings">
+              <h4>Room Background</h4>
+              <div id="backgroundOptions" class="background-options-grid"></div>
+            </div>
+          </div>
         </div>
       </div>
 

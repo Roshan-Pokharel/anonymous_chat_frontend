@@ -61,30 +61,76 @@ body {
 }
 
 #sidebar {
-  width: 280px; /* Slightly wider for better spacing */
+  width: 320px;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border-color);
-  padding: 16px;
-  overflow-y: auto;
-  box-sizing: border-box;
   transition: background-color 0.3s, border-color 0.3s;
   display: flex;
   flex-direction: column;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* --- MODIFIED: User list now takes more space --- */
-#userListContainer {
-  flex: 3; /* More space for the user list */
-  min-height: 200px; /* Ensure it has a minimum height */
+#sidebar-nav {
   display: flex;
+  justify-content: space-around;
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-nav-btn {
+  background: transparent;
+  border: none;
+  padding: 10px 16px;
+  font-size: 24px;
+  color: var(--text-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar-nav-btn:hover {
+  background: var(--user-hover-bg);
+}
+
+.sidebar-nav-btn.active {
+  color: var(--primary-accent);
+  background: var(--user-hover-bg);
+}
+
+#sidebar-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  padding: 16px;
+}
+
+.sidebar-panel {
+  display: none;
+  height: 100%;
   flex-direction: column;
 }
-#userList {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 5px; /* Space for scrollbar */
+
+.sidebar-panel.active {
+  display: flex;
 }
 
+#userListContainer,
+.game-controls-desktop,
+.background-settings {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#userList,
+#gameRoomListDesktop,
+.background-options-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px; /* For scrollbar */
+}
 #chat {
   flex: 1;
   display: flex;
@@ -243,7 +289,6 @@ button.btn-secondary:hover {
   background: var(--btn-secondary-hover-bg);
 }
 
-/* --- MODIFIED: Styles for the user list item --- */
 .user {
   display: flex;
   align-items: center;
@@ -263,12 +308,10 @@ button.btn-secondary:hover {
 body.dark-mode .user:hover {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
-/* This is the public room button */
 .user.public-room {
   font-weight: 600;
 }
 
-/* --- NEW: User Avatar Styles --- */
 .user-avatar {
   width: 40px;
   height: 40px;
@@ -282,7 +325,6 @@ body.dark-mode .user:hover {
   flex-shrink: 0; /* Prevents avatar from shrinking */
 }
 
-/* --- NEW: User Info container --- */
 .user-info {
   flex: 1;
   display: flex;
@@ -308,7 +350,6 @@ body.dark-mode .user-details {
   color: #9ca3af;
 }
 
-/* --- NEW: Online Status Dot --- */
 .status-dot {
   width: 9px;
   height: 9px;
@@ -389,12 +430,6 @@ body.dark-mode #typing-indicator {
   color: #9ca3af;
 }
 
-.background-settings {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-  flex-shrink: 0; /* Prevents this section from shrinking */
-}
 .background-settings h4 {
   margin: 0 0 12px 0;
   font-weight: 600;
@@ -468,7 +503,6 @@ body.dark-mode #typing-indicator {
   z-index: 6;
   text-align: center;
 }
-/* New style for game overlay messages */
 .game-overlay-message {
   position: absolute;
   top: 50%;
@@ -503,12 +537,6 @@ body.dark-mode #typing-indicator {
   gap: 10px;
   pointer-events: auto;
 }
-.game-controls-desktop {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-  flex-shrink: 0; /* Prevents this section from shrinking */
-}
 .game-controls-desktop h4,
 .room-list-header {
   margin: 16px 0 12px 0;
@@ -524,7 +552,6 @@ body.dark-mode #typing-indicator {
 }
 
 /* Game Room List Styles */
-#gameRoomListDesktop,
 #gameRoomListMobile {
   display: flex;
   flex-direction: column;
@@ -724,10 +751,8 @@ body.dark-mode #typing-indicator {
     min-width: 60px;
   }
 
-  /* Make mobile modal a fixed size to prevent resizing on tab switch */
   #allUsersModal .modal-content {
     height: 80vh;
-    /* Allow content to control flow */
     display: flex;
     flex-direction: column;
   }
@@ -739,7 +764,6 @@ body.dark-mode #typing-indicator {
     flex-direction: column;
   }
 
-  /* Game container adjustments for mobile */
   #gameContainer {
     top: calc(16px + 48px); /* Below topbar */
     bottom: calc(16px + 60px); /* Above input area */
@@ -755,16 +779,12 @@ body.dark-mode #typing-indicator {
   }
 }
 
-/* --- ADDED/MODIFIED STYLES FOR NEW FEATURES --- */
-
 #createGameModal,
 #passwordPromptModal,
 #howToPlayModal {
-  /* Added howToPlayModal */
   z-index: 1001;
 }
 
-/* NEW: Styles for the "How to Play" modal content */
 #howToPlayModal .modal-content ul {
   list-style: none;
   padding-left: 0;
@@ -786,18 +806,16 @@ body.dark-mode #typing-indicator {
   line-height: 1.6;
 }
 
-/* General layout for the mobile game controls tab */
 #gameControlsMobile {
   display: flex;
   flex-direction: column;
-  gap: 12px; /* Reduced gap for a tighter layout */
+  gap: 12px;
   height: 100%;
 }
 #gameControlsMobile button {
   margin-bottom: 0;
 }
 
-/* Styling for the fieldset to group the room list */
 .room-list-fieldset {
   border: 1px solid var(--border-color);
   border-radius: 8px;

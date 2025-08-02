@@ -48,6 +48,10 @@ const backgroundOptionsMobileContainer = document.getElementById(
   "backgroundOptionsMobile"
 );
 
+// Sidebar elements
+const sidebarNav = document.getElementById("sidebar-nav");
+const sidebarPanels = document.querySelectorAll(".sidebar-panel");
+
 // Game Elements
 const gameContainer = document.getElementById("gameContainer");
 const gameCanvas = document.getElementById("gameCanvas");
@@ -107,7 +111,6 @@ window.addEventListener("load", () => {
   if (savedBackground) applyBackground(savedBackground);
   adjustHeightForKeyboard();
   populateBackgroundOptions(backgroundOptionsContainer);
-  // MODIFIED: This function call is now handled inside the socket 'connect' event
 });
 window.addEventListener("resize", () => {
   adjustHeightForKeyboard();
@@ -174,10 +177,23 @@ mobileModalNav.addEventListener("click", (e) => {
   });
 });
 
+sidebarNav.addEventListener("click", (e) => {
+  if (e.target.tagName !== "BUTTON") return;
+  const panelId = e.target.dataset.panel;
+
+  document
+    .querySelectorAll(".sidebar-nav-btn")
+    .forEach((btn) => btn.classList.remove("active"));
+  e.target.classList.add("active");
+
+  sidebarPanels.forEach((panel) => {
+    panel.classList.toggle("active", panel.id === panelId);
+  });
+});
+
 // --- Socket Event Handlers ---
 socket.on("connect", () => {
   myId = socket.id;
-  // MODIFIED: Check for persisted login info on connection
   checkForPersistedLogin();
 });
 
@@ -233,17 +249,14 @@ socket.on("chat message", (msg) => {
 
 // --- Core Functions ---
 
-// NEW: Function to handle persisted login
 function checkForPersistedLogin() {
   try {
     const storedUser = JSON.parse(localStorage.getItem("userInfo"));
     if (storedUser && Date.now() - storedUser.timestamp < LOGIN_EXPIRATION_MS) {
-      // User data is valid
       socket.emit("user info", storedUser.data);
       userModal.style.display = "none";
       switchRoom("public", "🌐 Public Chat");
     } else {
-      // No valid user data, show login modal
       localStorage.removeItem("userInfo");
       showUserModal();
     }
@@ -272,7 +285,6 @@ function showUserModal() {
     const userInfo = { nickname, gender, age };
     socket.emit("user info", userInfo);
 
-    // NEW: Save user info to localStorage with a timestamp
     const dataToStore = {
       timestamp: Date.now(),
       data: userInfo,
@@ -331,12 +343,11 @@ function addMessage(msg, type = "") {
   }
 }
 
-// --- MODIFIED: This function is completely updated for the new look ---
 function updateUserList() {
   const processList = (container) => {
-    container.innerHTML = ""; // Clear existing list
+    if (!container) return;
+    container.innerHTML = "";
 
-    // 1. Add Public Room button
     const publicBtn = document.createElement("div");
     publicBtn.className = "user public-room";
     publicBtn.innerHTML = `🌐 Public Room`;
@@ -348,14 +359,11 @@ function updateUserList() {
     };
     container.appendChild(publicBtn);
 
-    // 2. Add each online user
     latestUsers.forEach((user) => {
-      if (user.id === myId) return; // Don't show myself in the list
+      if (user.id === myId) return;
 
       const div = document.createElement("div");
       div.className = "user";
-
-      // Generate a color from the user's ID for the avatar
       const avatarColor = generateColorFromId(user.id);
       const initial = user.name.charAt(0).toUpperCase();
 
@@ -380,18 +388,17 @@ function updateUserList() {
         const privateRoomName = [myId, user.id].sort().join("-");
         switchRoom(privateRoomName, `🔒 Chat with ${user.name}`);
         delete unreadPrivate[user.id];
-        updateUserList(); // Redraw list to remove red dot
+        updateUserList();
         if (allUsersModal.style.display === "flex") {
           allUsersModal.style.display = "none";
         }
       };
-
       container.appendChild(div);
     });
   };
 
-  processList(userList); // Update sidebar list
-  processList(allUsersList); // Update modal list
+  processList(userList);
+  processList(allUsersList);
 }
 
 function switchRoom(roomName, title) {
@@ -422,7 +429,6 @@ function switchRoom(roomName, title) {
 
 // --- Helper & UI Functions ---
 
-// NEW: Helper to generate a consistent color from a string (user ID)
 function generateColorFromId(id) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
@@ -497,7 +503,6 @@ function populateBackgroundOptions(container) {
 
 // --- GAME LOGIC ---
 
-// NEW: Event listeners for "How to Play" modal
 const openHowToPlayModal = () => (howToPlayModal.style.display = "flex");
 howToPlayBtnDesktop.addEventListener("click", openHowToPlayModal);
 howToPlayBtnMobile.addEventListener("click", openHowToPlayModal);
@@ -530,14 +535,12 @@ socket.on("game:joined", (roomData) => {
   }
 });
 
-// MODIFIED: Handle game join errors by showing message in the password modal
 socket.on("game:join_error", (message) => {
   if (passwordPromptModal.style.display === "flex") {
     passwordError.textContent = message;
     passwordError.style.display = "block";
     joinPasswordInput.focus();
   } else {
-    // Fallback for non-password related join errors
     displayError(message);
   }
 });
@@ -664,7 +667,7 @@ cancelJoinBtn.addEventListener("click", () => {
   passwordPromptModal.style.display = "none";
   joiningRoomId = null;
   joinPasswordInput.value = "";
-  passwordError.style.display = "none"; // Hide error on cancel
+  passwordError.style.display = "none";
 });
 
 function handleStartGame() {
@@ -709,6 +712,7 @@ function updateGameButtonVisibility(state) {
 
 function updateGameRoomList(rooms) {
   const renderList = (container) => {
+    if (!container) return;
     container.innerHTML = "";
     if (rooms.length === 0) {
       container.innerHTML = '<p class="no-rooms-msg">No active game rooms.</p>';
@@ -729,7 +733,7 @@ function updateGameRoomList(rooms) {
       joinBtn.onclick = () => {
         if (room.hasPassword) {
           joiningRoomId = room.id;
-          passwordError.style.display = "none"; // Hide previous errors
+          passwordError.style.display = "none";
           passwordPromptModal.style.display = "flex";
           joinPasswordInput.focus();
         } else {
