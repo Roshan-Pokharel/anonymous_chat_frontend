@@ -43,8 +43,9 @@ const howToPlayBtnMobile = document.getElementById("howToPlayBtnMobile");
 
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
-const modalTabs = document.querySelectorAll(".modal-tab-content");
 const mobileModalContent = document.getElementById("mobileModalContent");
+// SMOOTH SWAP: Select the new wrapper for animation
+const modalTabWrapper = document.querySelector(".modal-tab-wrapper");
 const backgroundOptionsMobileContainer = document.getElementById(
   "backgroundOptionsMobile"
 );
@@ -114,7 +115,6 @@ window.addEventListener("load", () => {
   if (savedBackground) applyBackground(savedBackground);
   adjustHeightForKeyboard();
   populateBackgroundOptions(backgroundOptionsContainer);
-  // FIX 3: Initialize swipe listeners for the mobile modal
   setupMobileModalSwipe();
 });
 window.addEventListener("resize", () => {
@@ -172,9 +172,13 @@ closeScoreboardBtn.onclick = () => (scoreboardModal.style.display = "none");
 
 // --- Mobile Tab Navigation ---
 const mobileTabOrder = ["users", "game", "appearance"];
-function switchMobileTab(tabName) {
-  if (!mobileTabOrder.includes(tabName)) return;
 
+// SMOOTH SWAP: Updated function to use CSS transform for sliding
+function switchMobileTab(tabName) {
+  const tabIndex = mobileTabOrder.indexOf(tabName);
+  if (tabIndex === -1) return;
+
+  // Update nav buttons styling
   document
     .querySelectorAll(".modal-nav-btn")
     .forEach((btn) => btn.classList.remove("active"));
@@ -182,9 +186,8 @@ function switchMobileTab(tabName) {
     .querySelector(`.modal-nav-btn[data-tab="${tabName}"]`)
     .classList.add("active");
 
-  modalTabs.forEach((tab) => {
-    tab.classList.toggle("active", tab.id === `${tabName}Tab`);
-  });
+  // Apply the transform to slide the wrapper
+  modalTabWrapper.style.transform = `translateX(-${tabIndex * 100}%)`;
 }
 
 mobileModalNav.addEventListener("click", (e) => {
@@ -193,19 +196,23 @@ mobileModalNav.addEventListener("click", (e) => {
   switchMobileTab(tabName);
 });
 
-// FIX 3: Swipe navigation for mobile modal
 function setupMobileModalSwipe() {
   let touchStartX = 0;
   let touchEndX = 0;
   const swipeThreshold = 50; // Minimum distance for a swipe
 
   mobileModalContent.addEventListener("touchstart", (e) => {
-    touchStartX = e.changedTouches[0].screenX;
+    // Only start tracking swipe on the tab content area, not the nav buttons
+    if (e.target.closest(".modal-tab-viewport")) {
+      touchStartX = e.changedTouches[0].screenX;
+    }
   });
 
   mobileModalContent.addEventListener("touchend", (e) => {
+    if (touchStartX === 0) return; // Didn't start on the right element
     touchEndX = e.changedTouches[0].screenX;
     handleSwipeGesture();
+    touchStartX = 0; // Reset for next touch
   });
 
   function handleSwipeGesture() {
@@ -230,7 +237,6 @@ function setupMobileModalSwipe() {
     }
   }
 }
-// --- End of Fix 3 ---
 
 sidebarNav.addEventListener("click", (e) => {
   if (e.target.tagName !== "BUTTON") return;
@@ -549,10 +555,9 @@ function populateBackgroundOptions(container) {
   if (!container) return;
   container.innerHTML = "";
 
-  // Create the default option as a div to match styling of image tiles
   const defaultOption = document.createElement("div");
   defaultOption.className = "background-option background-option-default";
-  defaultOption.innerHTML = "<span>Default</span>"; // This line is changed
+  defaultOption.innerHTML = "<span>Default</span>";
   defaultOption.onclick = () => applyBackground(null);
   container.appendChild(defaultOption);
 
@@ -765,7 +770,6 @@ function updateGameButtonVisibility(state) {
   startGameBtnMobile.style.display = showStart ? "block" : "none";
   stopGameBtnMobile.style.display = showStop ? "block" : "none";
 
-  // FIX 2: Add/remove color classes for game buttons
   if (showStart) {
     startGameBtn.classList.add("btn-start");
     startGameBtnMobile.classList.add("btn-start");

@@ -168,47 +168,60 @@
           </button>
         </div>
 
-        <div id="usersTab" class="modal-tab-content active">
-          <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
-            Online Users
-          </h3>
-          <div id="allUsersList"></div>
-        </div>
+        <div class="modal-tab-viewport">
+          <div class="modal-tab-wrapper">
+            <div id="usersTab" class="modal-tab-content">
+              <h3
+                style="margin-bottom: 12px; color: #4f46e5; text-align: center"
+              >
+                Online Users
+              </h3>
+              <div id="allUsersList"></div>
+            </div>
 
-        <div id="gameTab" class="modal-tab-content">
-          <h3 style="margin-bottom: 12px; color: #4f46e5; text-align: center">
-            Doodle Dash
-          </h3>
-          <div id="gameControlsMobile">
-            <button id="howToPlayBtnMobile" class="btn-secondary">
-              How to Play
-            </button>
-            <button id="createGameRoomBtnMobile">Create Game Room</button>
-            <fieldset class="room-list-fieldset">
-              <legend>Available Rooms</legend>
-              <div id="gameRoomListMobile"></div>
-            </fieldset>
-            <div class="mobile-game-actions">
-              <button id="startGameBtnMobile" style="display: none">
-                Start Game
-              </button>
-              <button id="stopGameBtnMobile" style="display: none">
-                Stop Game
-              </button>
+            <div id="gameTab" class="modal-tab-content">
+              <h3
+                style="margin-bottom: 12px; color: #4f46e5; text-align: center"
+              >
+                Doodle Dash
+              </h3>
+              <div id="gameControlsMobile">
+                <button id="howToPlayBtnMobile" class="btn-secondary">
+                  How to Play
+                </button>
+                <button id="createGameRoomBtnMobile">Create Game Room</button>
+                <fieldset class="room-list-fieldset">
+                  <legend>Available Rooms</legend>
+                  <div id="gameRoomListMobile"></div>
+                </fieldset>
+                <div class="mobile-game-actions">
+                  <button id="startGameBtnMobile" style="display: none">
+                    Start Game
+                  </button>
+                  <button id="stopGameBtnMobile" style="display: none">
+                    Stop Game
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div id="appearanceTab" class="modal-tab-content">
+              <h4
+                style="
+                  margin: 16px 0 12px 0;
+                  color: #4f46e5;
+                  text-align: center;
+                "
+              >
+                🎨 Chat Background
+              </h4>
+              <div
+                id="backgroundOptionsMobile"
+                class="background-options-grid"
+              ></div>
             </div>
           </div>
         </div>
-
-        <div id="appearanceTab" class="modal-tab-content">
-          <h4 style="margin: 16px 0 12px 0; color: #4f46e5; text-align: center">
-            🎨 Chat Background
-          </h4>
-          <div
-            id="backgroundOptionsMobile"
-            class="background-options-grid"
-          ></div>
-        </div>
-
         <button
           onclick="document.getElementById('allUsersModal').style.display='none';"
           class="btn-close-modal"
