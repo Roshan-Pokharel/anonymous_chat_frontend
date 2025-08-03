@@ -1,5 +1,5 @@
 // Establish connection to the Socket.IO server
-const socket = io("http://localhost:3000");
+const socket = io("https://anonymous-chat-backend-1.onrender.com");
 
 // --- DOM Element Selectors ---
 const form = document.getElementById("form");
