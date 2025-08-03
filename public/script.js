@@ -12,6 +12,10 @@ const themeToggleBtn = document.getElementById("theme-toggle");
 const typingIndicator = document.getElementById("typing-indicator");
 const errorMessage = document.getElementById("error-message");
 const backgroundOptionsContainer = document.getElementById("backgroundOptions");
+const connectedChatsList = document.getElementById("connectedChatsList");
+const connectedChatsListMobile = document.getElementById(
+  "connectedChatsListMobile"
+);
 
 // Modal elements
 const userModal = document.getElementById("userModal");
@@ -35,6 +39,11 @@ const joinPasswordInput = document.getElementById("joinPasswordInput");
 const cancelJoinBtn = document.getElementById("cancelJoinBtn");
 const passwordError = document.getElementById("passwordError");
 
+// Disconnect Modal Elements
+const disconnectModal = document.getElementById("disconnectModal");
+const cancelDisconnectBtn = document.getElementById("cancelDisconnectBtn");
+const confirmDisconnectBtn = document.getElementById("confirmDisconnectBtn");
+
 // How to Play Modal Elements
 const howToPlayModal = document.getElementById("howToPlayModal");
 const howToPlayTitle = document.getElementById("howToPlayTitle");
@@ -42,6 +51,18 @@ const howToPlayRules = document.getElementById("howToPlayRules");
 const closeHowToPlayBtn = document.getElementById("closeHowToPlayBtn");
 const howToPlayBtnDesktop = document.getElementById("howToPlayBtnDesktop");
 const howToPlayBtnMobile = document.getElementById("howToPlayBtnMobile");
+
+// Private Chat Request Modal Elements
+const privateRequestModal = document.getElementById("privateRequestModal");
+const privateRequestFrom = document.getElementById("privateRequestFrom");
+const acceptRequestBtn = document.getElementById("acceptRequestBtn");
+const declineRequestBtn = document.getElementById("declineRequestBtn");
+
+// Call Modal Elements
+const incomingCallModal = document.getElementById("incomingCallModal");
+const incomingCallFrom = document.getElementById("incomingCallFrom");
+const acceptCallBtn = document.getElementById("acceptCallBtn");
+const declineCallBtn = document.getElementById("declineCallBtn");
 
 // Mobile Modal Tab elements
 const mobileModalNav = document.getElementById("mobileModalNav");
@@ -86,16 +107,27 @@ const hangmanIncorrectLetters = document.getElementById(
 );
 const hangmanGameInfo = document.getElementById("hangmanGameInfo");
 
+// Call & Audio Elements
+const startCallBtn = document.getElementById("startCallBtn");
+const endCallBtn = document.getElementById("endCallBtn");
+const localAudio = document.getElementById("localAudio");
+const remoteAudio = document.getElementById("remoteAudio");
+
 // --- Application & Game State ---
 let latestUsers = [];
 let unreadPrivate = {};
-let currentRoom = { id: null, type: null };
+let currentRoom = { id: "public", type: "public" };
 let myId = null;
 let isTyping = false;
 let typingTimer;
 const TYPING_TIMER_LENGTH = 1500;
 let joiningRoomId = null;
 const LOGIN_EXPIRATION_MS = 5 * 60 * 1000;
+let pendingPrivateRequests = {}; // Tracks outgoing requests { targetId: true }
+let incomingPrivateRequest = null; // Stores data of incoming request
+let recentlyDeclinedBy = {}; // Tracks users who have declined a request from me
+let connectedRooms = {}; // Stores info about active private chats { roomId: { withUser: {id, name} } }
+let disconnectTarget = null;
 
 // Canvas/Drawing State
 const ctx = gameCanvas.getContext("2d");
@@ -107,6 +139,19 @@ let overlayTimer;
 let currentDrawingHistory = [];
 let roundCountdownInterval = null;
 let hangmanCountdownInterval = null;
+
+// --- WebRTC & Call State ---
+let peerConnection;
+let localStream;
+let isCallActive = false;
+let callPartnerId = null; // Stores the ID of the person we are in a call with
+let incomingCallData = null;
+const peerConnectionConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ],
+};
 
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
@@ -179,6 +224,7 @@ form.addEventListener("submit", (e) => {
 });
 
 showUsersBtn.onclick = () => {
+  updateSideBar(); // Refresh the list to ensure it's up-to-date
   populateBackgroundOptions(backgroundOptionsMobileContainer);
   allUsersModal.style.display = "flex";
   updateGameButtonVisibility(currentGameState);
@@ -274,7 +320,7 @@ socket.on("stop typing", ({ room }) => {
 });
 socket.on("user list", (users) => {
   latestUsers = users;
-  updateUserList();
+  updateSideBar();
 });
 socket.on("room history", (msgs) => {
   messages.innerHTML = "";
@@ -301,7 +347,7 @@ socket.on("chat message", (msg) => {
     if (currentRoom.type === "private" && msg.room !== "public") {
       const otherId = msg.id === myId ? msg.to : msg.id;
       delete unreadPrivate[otherId];
-      updateUserList();
+      updateSideBar();
     }
   } else if (
     msg.room.includes("-") &&
@@ -309,7 +355,7 @@ socket.on("chat message", (msg) => {
     msg.to === myId
   ) {
     unreadPrivate[msg.id] = true;
-    updateUserList();
+    updateSideBar();
   }
 });
 
@@ -366,7 +412,11 @@ function addMessage(msg, type = "") {
 
   const isMe = msg.id && msg.id === myId;
   const isSystem =
-    type === "system" || msg.name === "System" || msg.isGameEvent;
+    type === "system" ||
+    msg.name === "System" ||
+    msg.isGameEvent ||
+    msg.isCallEvent ||
+    msg.isPrivateChatEvent;
   if (isSystem) item.classList.add("system");
   else item.classList.add(isMe ? "me" : "other");
 
@@ -397,57 +447,118 @@ function addMessage(msg, type = "") {
   }
 }
 
-function updateUserList() {
-  const processList = (container) => {
-    if (!container) return;
-    container.innerHTML = "";
+function updateSideBar() {
+  updateConnectedChatsList(connectedChatsList);
+  updateConnectedChatsList(connectedChatsListMobile);
+  updateUserList(userList);
+  updateUserList(allUsersList);
+}
 
-    const publicBtn = document.createElement("div");
-    publicBtn.className = "user public-room";
-    publicBtn.innerHTML = `🌐 Public Room`;
-    publicBtn.onclick = () => {
-      switchRoom("public", "🌐 Public Chat", "public");
-      if (allUsersModal.style.display === "flex") {
-        allUsersModal.style.display = "none";
+function updateConnectedChatsList(container) {
+  if (!container) return;
+  container.innerHTML = "";
+  const rooms = Object.keys(connectedRooms);
+
+  if (rooms.length === 0) {
+    container.parentElement.style.display = "none";
+    return;
+  }
+
+  container.parentElement.style.display = "block";
+
+  rooms.forEach((roomId) => {
+    const room = connectedRooms[roomId];
+    const user = room.withUser;
+    const div = document.createElement("div");
+    div.className = "user connected-chat-item";
+    div.dataset.userId = user.id;
+
+    const avatarColor = generateColorFromId(user.id);
+    const initial = user.name.charAt(0).toUpperCase();
+    div.innerHTML = `
+            <div class="user-avatar" style="background-color: ${avatarColor};">${initial}</div>
+            <div class="user-info">
+                <div class="user-name">${user.name}</div>
+            </div>
+            <button class="disconnect-btn" data-room-id="${roomId}">Connected</button>`;
+
+    div.onclick = (e) => {
+      if (e.target.classList.contains("disconnect-btn")) {
+        showDisconnectConfirm(roomId);
+      } else {
+        switchRoom(roomId, `🔒 Chat with ${user.name}`, "private");
       }
     };
-    container.appendChild(publicBtn);
 
-    latestUsers.forEach((user) => {
-      if (user.id === myId) return;
-      const div = document.createElement("div");
-      div.className = "user";
-      const avatarColor = generateColorFromId(user.id);
-      const initial = user.name.charAt(0).toUpperCase();
-      div.innerHTML = `
-        <div class="user-avatar" style="background-color: ${avatarColor};">${initial}</div>
-        <div class="user-info">
-          <div class="user-name" style="color:${getGenderColor(
-            user.gender
-          )};">${user.name}</div>
-          <div class="user-details">
-            <span class="status-dot"></span>
-            <span>Online ${getGenderSymbol(user.gender)} ${
-        user.age ? "· " + user.age : ""
-      }</span>
-          </div>
-        </div>
-        ${unreadPrivate[user.id] ? '<span class="red-dot"></span>' : ""} `;
-      div.onclick = () => {
-        const privateRoomName = [myId, user.id].sort().join("-");
-        switchRoom(privateRoomName, `🔒 Chat with ${user.name}`, "private");
-        delete unreadPrivate[user.id];
-        updateUserList();
-        if (allUsersModal.style.display === "flex") {
-          allUsersModal.style.display = "none";
-        }
-      };
-      container.appendChild(div);
-    });
+    container.appendChild(div);
+  });
+}
+
+function updateUserList(container) {
+  if (!container) return;
+  container.innerHTML = "";
+
+  const publicBtn = document.createElement("div");
+  publicBtn.className = "user public-room";
+  publicBtn.innerHTML = `🌐 Public Room`;
+  publicBtn.onclick = () => {
+    switchRoom("public", "🌐 Public Chat", "public");
+    if (allUsersModal.style.display === "flex") {
+      allUsersModal.style.display = "none";
+    }
   };
+  container.appendChild(publicBtn);
 
-  processList(userList);
-  processList(allUsersList);
+  latestUsers.forEach((user) => {
+    if (user.id === myId) return;
+
+    const privateRoomId = [myId, user.id].sort().join("-");
+    if (connectedRooms[privateRoomId]) return; // Don't show users we're already connected to
+
+    const div = document.createElement("div");
+    div.className = "user";
+    div.dataset.userId = user.id;
+
+    if (pendingPrivateRequests[user.id]) {
+      div.classList.add("pending");
+    }
+    if (recentlyDeclinedBy[user.id]) {
+      div.classList.add("declined");
+    }
+
+    div.onclick = () => {
+      if (div.classList.contains("declined")) {
+        displayError(
+          `${user.name} declined your last request. They must initiate the next chat.`
+        );
+        return;
+      }
+      if (div.classList.contains("pending")) {
+        displayError("A private chat request is already pending.");
+        return;
+      }
+      initiatePrivateChat(user);
+    };
+
+    const avatarColor = generateColorFromId(user.id);
+    const initial = user.name.charAt(0).toUpperCase();
+    div.innerHTML = `
+          <div class="user-avatar" style="background-color: ${avatarColor};">${initial}</div>
+          <div class="user-info">
+            <div class="user-name" style="color:${getGenderColor(
+              user.gender
+            )};">${user.name}</div>
+            <div class="user-details">
+              <span class="status-dot"></span>
+              <span>Online ${getGenderSymbol(user.gender)}${
+      user.age ? " · " + user.age : ""
+    }</span>
+            </div>
+          </div>
+          ${unreadPrivate[user.id] ? '<span class="red-dot"></span>' : ""}`;
+
+    container.appendChild(div);
+  });
 }
 
 function switchRoom(roomId, title, roomType) {
@@ -464,15 +575,18 @@ function switchRoom(roomId, title, roomType) {
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
 
+  updateCallButtonVisibility();
+  updateSideBar();
+
   if (roomType === "doodle" || roomType === "hangman") {
-    socket.emit("join room", roomId); // Still need to join the socket room
+    socket.emit("join room", roomId);
     showGameContainer(roomType);
     if (roomType === "doodle") {
       setTimeout(setupCanvas, 50);
     }
   } else {
     socket.emit("join room", roomId);
-    endGame(); // Hides all game containers
+    endGame();
   }
   updateGameButtonVisibility({});
 }
@@ -549,6 +663,150 @@ function populateBackgroundOptions(container) {
   });
 }
 
+// --- PRIVATE CHAT REQUESTS ---
+function initiatePrivateChat(targetUser) {
+  if (recentlyDeclinedBy[targetUser.id]) {
+    displayError(
+      `${targetUser.name} declined your last request. They must initiate the next chat.`
+    );
+    return;
+  }
+  if (pendingPrivateRequests[targetUser.id]) {
+    displayError("You have already sent a request to this user.");
+    return;
+  }
+  socket.emit("private:initiate", { targetId: targetUser.id });
+  pendingPrivateRequests[targetUser.id] = true;
+  updateSideBar();
+  showGameOverlayMessage(
+    `Requesting to chat with ${targetUser.name}...`,
+    2000,
+    "system"
+  );
+}
+
+socket.on("private:request_incoming", ({ fromUser }) => {
+  if (
+    isCallActive ||
+    privateRequestModal.style.display === "flex" ||
+    incomingCallModal.style.display === "flex"
+  ) {
+    socket.emit("private:decline", {
+      requesterId: fromUser.id,
+      reason: "busy",
+    });
+    return;
+  }
+  incomingPrivateRequest = fromUser;
+  privateRequestFrom.textContent = `${fromUser.name} wants to chat privately.`;
+  privateRequestModal.style.display = "flex";
+});
+
+socket.on("private:request_accepted", ({ room, withUser }) => {
+  delete pendingPrivateRequests[withUser.id];
+  delete recentlyDeclinedBy[withUser.id];
+
+  privateRequestModal.style.display = "none";
+  incomingPrivateRequest = null;
+
+  if (allUsersModal.style.display === "flex") {
+    allUsersModal.style.display = "none";
+  }
+
+  connectedRooms[room.id] = { withUser };
+  switchRoom(room.id, `🔒 Chat with ${withUser.name}`, "private");
+
+  showGameOverlayMessage(
+    `You are now chatting privately with ${withUser.name}.`,
+    2000,
+    "system"
+  );
+});
+
+socket.on("private:request_declined", ({ byUser, reason }) => {
+  delete pendingPrivateRequests[byUser.id];
+  recentlyDeclinedBy[byUser.id] = true; // Add user to the declined list
+
+  let message = `${byUser.name} declined your chat request.`;
+  if (reason === "busy") {
+    message = `${byUser.name} is busy and cannot chat right now.`;
+  } else if (reason === "offline") {
+    message = `Your chat request to ${byUser.name} was cancelled as they went offline.`;
+  }
+  showGameOverlayMessage(message, 2000, "system");
+  updateSideBar();
+});
+
+socket.on("private:request_error", (errorMsg) => {
+  displayError(errorMsg);
+  // On an error from the server (like the other user has blocked you), update the UI
+  const targetId = Object.keys(pendingPrivateRequests)[0];
+  if (targetId) {
+    recentlyDeclinedBy[targetId] = true;
+  }
+  pendingPrivateRequests = {};
+  updateSideBar();
+});
+
+acceptRequestBtn.addEventListener("click", () => {
+  if (incomingPrivateRequest) {
+    socket.emit("private:accept", { requesterId: incomingPrivateRequest.id });
+    privateRequestModal.style.display = "none";
+    incomingPrivateRequest = null;
+  }
+});
+
+declineRequestBtn.addEventListener("click", () => {
+  if (incomingPrivateRequest) {
+    socket.emit("private:decline", {
+      requesterId: incomingPrivateRequest.id,
+      reason: "declined",
+    });
+    privateRequestModal.style.display = "none";
+    incomingPrivateRequest = null;
+  }
+});
+
+// --- PRIVATE CHAT DISCONNECT ---
+function showDisconnectConfirm(roomId) {
+  disconnectTarget = roomId;
+  disconnectModal.style.display = "flex";
+}
+
+cancelDisconnectBtn.addEventListener("click", () => {
+  disconnectModal.style.display = "none";
+  disconnectTarget = null;
+});
+
+confirmDisconnectBtn.addEventListener("click", () => {
+  if (disconnectTarget) {
+    socket.emit("private:leave", { room: disconnectTarget });
+    delete connectedRooms[disconnectTarget];
+
+    if (currentRoom.id === disconnectTarget) {
+      switchRoom("public", "🌐 Public Chat", "public");
+    }
+    updateSideBar();
+  }
+  disconnectModal.style.display = "none";
+  disconnectTarget = null;
+});
+
+socket.on("private:partner_left", ({ room, partnerName }) => {
+  if (connectedRooms[room]) {
+    if (currentRoom.id === room) {
+      showGameOverlayMessage(
+        `${partnerName} has left the private chat.`,
+        2000,
+        "system"
+      );
+      switchRoom("public", "🌐 Public Chat", "public");
+    }
+    delete connectedRooms[room];
+    updateSideBar();
+  }
+});
+
 // --- GAME LOGIC ---
 const openHowToPlayModal = () => {
   const gameType = currentGameState.gameType || "doodle";
@@ -587,9 +845,19 @@ howToPlayModal.addEventListener("click", (e) => {
   if (e.target === howToPlayModal) howToPlayModal.style.display = "none";
 });
 
-function showGameOverlayMessage(text, duration = 2500) {
+function showGameOverlayMessage(text, duration = 2500, type = "info") {
   if (!gameOverlayMessage) return;
   gameOverlayMessage.textContent = text;
+
+  // Reset classes to default
+  gameOverlayMessage.className = "game-overlay-message";
+
+  if (type === "system") {
+    gameOverlayMessage.classList.add("system-overlay");
+  } else if (type === "success") {
+    gameOverlayMessage.classList.add("success-overlay");
+  }
+
   gameOverlayMessage.classList.add("visible");
   clearTimeout(overlayTimer);
   overlayTimer = setTimeout(() => {
@@ -680,7 +948,7 @@ socket.on("game:new_round", () => {
   showGameOverlayMessage("New Round!", 2000);
 });
 socket.on("game:correct_guess", ({ guesser, word }) => {
-  showGameOverlayMessage(`✅ ${guesser.name} guessed it!`, 3000);
+  showGameOverlayMessage(`✅ ${guesser.name} guessed it!`, 3000, "success");
   addMessage(
     {
       text: `${guesser.name} guessed the word! It was "${word}".`,
@@ -789,7 +1057,6 @@ function updateGameButtonVisibility(state) {
   const isGameRoom = currentRoom.id && currentRoom.id.startsWith("game-");
   const isGameActive = state && state.isRoundActive;
 
-  // Default to hiding all buttons
   startGameBtn.style.display = "none";
   startGameBtnMobile.style.display = "none";
   stopGameBtn.style.display = "none";
@@ -797,26 +1064,19 @@ function updateGameButtonVisibility(state) {
 
   if (isGameRoom && isCreator) {
     if (isGameActive) {
-      // --- Game is active: Show STOP button ---
       stopGameBtn.style.display = "block";
       stopGameBtnMobile.style.display = "block";
     } else {
-      // --- Game is in lobby: Show START button ---
       startGameBtn.style.display = "block";
       startGameBtnMobile.style.display = "block";
-
-      // Determine if the START button should be enabled
       let canStart = false;
       if (state.gameType === "hangman") {
         canStart = state.players && state.players.length === 2;
       } else {
-        // 'doodle' or other games
         canStart = state.players && state.players.length >= 2;
       }
       startGameBtn.disabled = !canStart;
       startGameBtnMobile.disabled = !canStart;
-
-      // Update info message if waiting for players
       if (!canStart) {
         const minPlayers = state.gameType === "hangman" ? 2 : 2;
         const infoElem =
@@ -827,8 +1087,6 @@ function updateGameButtonVisibility(state) {
       }
     }
   }
-
-  // Update button styling classes
   startGameBtn.classList.toggle("btn-start", !startGameBtn.disabled);
   startGameBtnMobile.classList.toggle(
     "btn-start",
@@ -850,7 +1108,6 @@ function updateGameRoomList(rooms) {
       const item = document.createElement("div");
       item.className = "game-room-item";
       const lockIcon = room.hasPassword ? "🔒 " : "";
-      // FIX: Corrected the broken emoji for hangman
       const gameIcon = room.gameType === "doodle" ? "✏️" : "🤔";
       item.innerHTML = `<span title="${room.name} (by ${room.creatorName})">${gameIcon} ${lockIcon}${room.name} (${room.players.length}p)</span><button data-room-id="${room.id}">Join</button>`;
       const joinBtn = item.querySelector("button");
@@ -937,9 +1194,17 @@ function renderDoodleState(state) {
       : `${state.drawer.name} is drawing...`;
     drawingTools.style.display = isDrawer ? "flex" : "none";
     gameCanvas.style.cursor = isDrawer ? "crosshair" : "not-allowed";
+
+    input.disabled = isDrawer;
+    input.placeholder = isDrawer
+      ? "You are drawing..."
+      : "Type your guess here!";
+
     if (state.roundEndTime) updateRoundTimer(state.roundEndTime);
   } else {
     updateRoundTimer(null);
+    input.disabled = false;
+    input.placeholder = "Type your message...";
     if (state.creatorId === myId) {
       gameInfo.textContent = 'You are the host. Press "Start Game" when ready.';
     } else {
@@ -1035,18 +1300,14 @@ gameCanvas.addEventListener("touchstart", handleStart);
 gameCanvas.addEventListener("touchmove", handleMove);
 gameCanvas.addEventListener("touchend", handleEnd);
 
-// --- REWRITTEN HANGMAN SPECIFIC FUNCTIONS ---
+// --- HANGMAN SPECIFIC FUNCTIONS ---
 function renderHangmanState(state) {
   if (!state || !hangmanGameContainer) return;
-
-  // Update timer
   if (state.isRoundActive && state.turnEndTime) {
     updateHangmanTimer(state.turnEndTime);
   } else {
     updateHangmanTimer(null);
   }
-
-  // Render the word display (e.g., _ A _ A S _ R _ _ T)
   const displayWord = state.displayWord || [];
   hangmanWordDisplay.innerHTML = displayWord
     .map(
@@ -1056,23 +1317,21 @@ function renderHangmanState(state) {
         }</div>`
     )
     .join("");
-
-  // Render the list of incorrect guesses
   const incorrectGuesses = state.incorrectGuesses || [];
   hangmanIncorrectLetters.textContent = `Incorrect: ${incorrectGuesses
-    .filter((g) => g.trim() !== "") // Don't display timeouts
+    .filter((g) => g.trim() !== "")
     .join(", ")
     .toUpperCase()}`;
-
-  // Update the hangman drawing based on the number of incorrect guesses
   const incorrectCount = incorrectGuesses.length;
   hangmanDrawing.className = `incorrect-${incorrectCount}`;
-
-  // Control user input based on game state
   const isMyTurn = state.currentPlayerTurn === myId;
-  input.disabled = !isMyTurn || !state.isRoundActive;
 
-  // Update game info text
+  if (state.isRoundActive) {
+    input.disabled = !isMyTurn;
+  } else {
+    input.disabled = false;
+  }
+
   if (state.isGameOver) {
     hangmanGameInfo.textContent = state.winner
       ? `🎉 ${state.winner.name} won!`
@@ -1085,7 +1344,6 @@ function renderHangmanState(state) {
     if (isMyTurn) {
       hangmanGameInfo.textContent = "Your turn to guess!";
       input.placeholder = "Guess a letter...";
-      input.focus();
     } else {
       hangmanGameInfo.textContent = `Waiting for ${
         currentPlayer ? currentPlayer.name : "other player"
@@ -1093,7 +1351,7 @@ function renderHangmanState(state) {
       input.placeholder = "Not your turn...";
     }
   } else {
-    // Game is in the lobby state
+    input.placeholder = "Type your message...";
     if (state.creatorId === myId) {
       hangmanGameInfo.textContent = 'Press "Start Game" when ready.';
     } else {
@@ -1102,6 +1360,206 @@ function renderHangmanState(state) {
         creator ? creator.name : "the host"
       } to start the game.`;
     }
-    input.placeholder = "Type your message...";
   }
 }
+
+// --- AUDIO CALL (WEBRTC) FUNCTIONS ---
+
+function updateCallButtonVisibility() {
+  const isPrivateChat = currentRoom.type === "private";
+  startCallBtn.style.display =
+    isPrivateChat && !isCallActive ? "inline-block" : "none";
+  endCallBtn.style.display = isCallActive ? "inline-block" : "none";
+
+  const inGame =
+    currentRoom.type === "doodle" || currentRoom.type === "hangman";
+
+  if (isCallActive && isPrivateChat && !inGame) {
+    input.placeholder = "Call in progress...";
+    input.disabled = true;
+  } else if (!inGame) {
+    input.placeholder = "Type your message...";
+    input.disabled = false;
+  }
+}
+
+async function createPeerConnection() {
+  peerConnection = new RTCPeerConnection(peerConnectionConfig);
+
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate && callPartnerId) {
+      socket.emit("call:ice_candidate", {
+        targetId: callPartnerId,
+        candidate: event.candidate,
+      });
+    }
+  };
+
+  peerConnection.ontrack = (event) => {
+    if (event.streams && event.streams[0]) {
+      remoteAudio.srcObject = event.streams[0];
+    }
+  };
+
+  if (localStream) {
+    localStream.getTracks().forEach((track) => {
+      peerConnection.addTrack(track, localStream);
+    });
+  }
+}
+
+async function startCall() {
+  if (isCallActive || currentRoom.type !== "private") return;
+
+  const otherUserId = currentRoom.id.replace(myId, "").replace("-", "");
+  if (!otherUserId || !latestUsers.some((u) => u.id === otherUserId)) {
+    displayError("The other user is not online.");
+    return;
+  }
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localAudio.srcObject = localStream;
+
+    callPartnerId = otherUserId;
+    isCallActive = true;
+    updateCallButtonVisibility();
+
+    await createPeerConnection();
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    socket.emit("call:offer", { targetId: callPartnerId, offer });
+
+    showGameOverlayMessage("📞 Calling...", 2000, "system");
+  } catch (err) {
+    console.error("Error starting call:", err);
+    displayError("Could not start call. Check microphone permissions.");
+    endCall(false);
+  }
+}
+
+function endCall(notifyPeer = true) {
+  if (!isCallActive && !incomingCallData) return;
+
+  if (notifyPeer && callPartnerId) {
+    socket.emit("call:end", { targetId: callPartnerId });
+  }
+
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+  if (localStream) {
+    localStream.getTracks().forEach((track) => track.stop());
+    localStream = null;
+  }
+
+  remoteAudio.srcObject = null;
+  localAudio.srcObject = null;
+  isCallActive = false;
+  callPartnerId = null;
+  incomingCallData = null;
+  incomingCallModal.style.display = "none";
+
+  showGameOverlayMessage("Call ended.", 2000, "system");
+  updateCallButtonVisibility();
+}
+
+// --- AUDIO CALL (WEBRTC) SOCKET HANDLERS ---
+socket.on("call:incoming", async ({ from, offer }) => {
+  if (isCallActive || incomingCallData) {
+    socket.emit("call:decline", { targetId: from.id, reason: "busy" });
+    return;
+  }
+
+  incomingCallData = { from, offer };
+  incomingCallFrom.textContent = `${from.name} is calling`;
+  incomingCallModal.style.display = "flex";
+});
+
+socket.on("call:answer_received", async ({ answer }) => {
+  if (peerConnection) {
+    await peerConnection.setRemoteDescription(
+      new RTCSessionDescription(answer)
+    );
+    showGameOverlayMessage("✅ Call connected.", 2000, "success");
+  }
+});
+
+socket.on("call:ice_candidate_received", async ({ candidate }) => {
+  if (peerConnection && candidate) {
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (e) {
+      console.error("Error adding received ice candidate", e);
+    }
+  }
+});
+
+socket.on("call:declined", ({ from, reason }) => {
+  const user = latestUsers.find((u) => u.id === from.id);
+  let message = `❌ ${user ? user.name : "User"} declined the call.`;
+  if (reason === "busy") {
+    message = `❌ ${user ? user.name : "User"} is busy on another call.`;
+  }
+  showGameOverlayMessage(message, 2000, "system");
+  endCall(false);
+});
+
+socket.on("call:ended", () => {
+  showGameOverlayMessage("The other user has ended the call.", 2000, "system");
+  endCall(false);
+});
+
+// --- AUDIO CALL (WEBRTC) EVENT LISTENERS ---
+startCallBtn.addEventListener("click", startCall);
+endCallBtn.addEventListener("click", () => endCall(true));
+
+acceptCallBtn.addEventListener("click", async () => {
+  if (!incomingCallData) return;
+
+  const { from, offer } = incomingCallData;
+  incomingCallModal.style.display = "none";
+
+  const privateRoomId = [myId, from.id].sort().join("-");
+  if (currentRoom.id !== privateRoomId) {
+    switchRoom(privateRoomId, `🔒 Chat with ${from.name}`, "private");
+  }
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localAudio.srcObject = localStream;
+
+    callPartnerId = from.id;
+    isCallActive = true;
+    updateCallButtonVisibility();
+
+    await createPeerConnection();
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+
+    socket.emit("call:answer", { targetId: from.id, answer });
+    showGameOverlayMessage("✅ Call accepted.", 2000, "success");
+
+    incomingCallData = null;
+  } catch (err) {
+    console.error("Error accepting call:", err);
+    displayError("Could not accept call. Check microphone permissions.");
+    endCall(true);
+  }
+});
+
+declineCallBtn.addEventListener("click", () => {
+  if (incomingCallData) {
+    socket.emit("call:decline", {
+      targetId: incomingCallData.from.id,
+      reason: "declined",
+    });
+  }
+  incomingCallModal.style.display = "none";
+  incomingCallData = null;
+});

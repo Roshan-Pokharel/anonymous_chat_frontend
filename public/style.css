@@ -28,6 +28,7 @@
   --danger-color: #ef4444;
   --danger-color-hover: #dc2626;
   --hg-stroke-color: #374151;
+  --pending-color: #f59e0b;
 }
 
 /* Dark Mode Styles */
@@ -304,10 +305,12 @@ button.btn-start:not(:disabled) {
 button.btn-start:not(:disabled):hover {
   background: var(--start-color-hover);
 }
-button.btn-danger {
+button.btn-danger,
+button.call-btn.danger {
   background: var(--danger-color);
 }
-button.btn-danger:hover {
+button.btn-danger:hover,
+button.call-btn.danger:hover {
   background: var(--danger-color-hover);
 }
 
@@ -326,6 +329,32 @@ button.btn-danger:hover {
   background: var(--user-hover-bg);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+.user.pending {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.user.pending::after {
+  content: "🕒";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  color: var(--pending-color);
+}
+.user.declined {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.user.declined::after {
+  content: "🚫";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  color: var(--danger-color);
 }
 body.dark-mode .user:hover {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
@@ -391,6 +420,38 @@ body.dark-mode .user-details {
   border: 2px solid var(--sidebar-bg);
 }
 
+#connectedChatsContainer,
+#connectedChatsContainerMobile {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+#connectedChatsContainer h3,
+#connectedChatsContainerMobile h3 {
+  margin: 0 0 12px 0;
+}
+.connected-chat-item {
+  background-color: var(--primary-accent-hover);
+  color: white;
+}
+.disconnect-btn {
+  background-color: var(--start-color);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: auto;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s;
+}
+
+.disconnect-btn:hover {
+  background-color: var(--danger-color);
+}
+
 #topBar {
   background: var(--topbar-bg);
   padding: 12px 16px;
@@ -409,7 +470,8 @@ body.dark-mode .user-details {
   gap: 10px;
 }
 
-#theme-toggle {
+#theme-toggle,
+.call-btn {
   background: transparent;
   border: none;
   color: var(--text-color);
@@ -419,8 +481,17 @@ body.dark-mode .user-details {
   border-radius: 8px;
   cursor: pointer;
 }
-#theme-toggle:hover {
+#theme-toggle:hover,
+.call-btn:hover {
   background: var(--user-hover-bg);
+}
+.call-btn#startCallBtn:hover {
+  background-color: var(--start-color-hover);
+  color: white;
+}
+.call-btn#endCallBtn:hover {
+  background-color: var(--danger-color-hover);
+  color: white;
 }
 
 #showUsersBtn {
@@ -592,6 +663,18 @@ body.dark-mode #typing-indicator {
 .game-overlay-message.visible {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
+}
+
+.game-overlay-message.system-overlay {
+  background: #facc15;
+  color: #422006;
+  font-style: italic;
+  font-size: 1.2rem;
+}
+
+.game-overlay-message.success-overlay {
+  background-color: var(--start-color);
+  color: white;
 }
 
 #drawingTools {
@@ -850,6 +933,11 @@ body.dark-mode #typing-indicator {
   justify-content: center;
   padding: 16px;
   box-sizing: border-box;
+}
+#privateRequestModal,
+#incomingCallModal,
+#disconnectModal {
+  z-index: 1002;
 }
 .modal-content {
   background: var(--modal-content-bg);

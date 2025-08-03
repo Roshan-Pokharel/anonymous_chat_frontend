@@ -51,6 +51,84 @@
       </form>
     </div>
 
+    <!-- Incoming Private Chat Request Modal -->
+    <div id="privateRequestModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <h2
+          id="privateRequestTitle"
+          style="
+            margin-bottom: 18px;
+            color: var(--primary-accent);
+            text-align: center;
+          "
+        >
+          💬 Private Chat Request
+        </h2>
+        <p
+          id="privateRequestFrom"
+          style="
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-top: -10px;
+            margin-bottom: 20px;
+          "
+        ></p>
+        <div class="modal-buttons">
+          <button id="declineRequestBtn" class="btn-danger">Decline</button>
+          <button id="acceptRequestBtn" class="btn-start">Accept</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disconnect Confirmation Modal -->
+    <div id="disconnectModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <h2 style="text-align: center; color: var(--danger-color)">
+          Disconnect
+        </h2>
+        <p style="text-align: center; font-size: 1.1rem; margin-bottom: 20px">
+          Are you sure you want to disconnect from this private chat?
+        </p>
+        <div class="modal-buttons">
+          <button id="cancelDisconnectBtn" class="btn-secondary">Cancel</button>
+          <button id="confirmDisconnectBtn" class="btn-danger">
+            Disconnect
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Incoming Call Modal -->
+    <div id="incomingCallModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <h2
+          id="incomingCallTitle"
+          style="
+            margin-bottom: 18px;
+            color: var(--secondary-accent);
+            text-align: center;
+          "
+        >
+          📞 Incoming Call...
+        </h2>
+        <p
+          id="incomingCallFrom"
+          style="
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-top: -10px;
+            margin-bottom: 20px;
+          "
+        ></p>
+        <div class="modal-buttons">
+          <button id="declineCallBtn" class="btn-danger">Decline</button>
+          <button id="acceptCallBtn" class="btn-start">Accept</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Create Game Modal -->
     <div id="createGameModal" class="modal" style="display: none">
       <form id="createGameForm" class="modal-content">
@@ -167,6 +245,10 @@
         <div class="modal-tab-viewport">
           <div class="modal-tab-wrapper">
             <div id="usersTab" class="modal-tab-content">
+              <div id="connectedChatsContainerMobile">
+                <h3>Private Chats</h3>
+                <div id="connectedChatsListMobile"></div>
+              </div>
               <h3
                 style="margin-bottom: 12px; color: #4f46e5; text-align: center"
               >
@@ -229,6 +311,22 @@
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
+        <button
+          id="startCallBtn"
+          class="call-btn"
+          title="Start Audio Call"
+          style="display: none"
+        >
+          📞
+        </button>
+        <button
+          id="endCallBtn"
+          class="call-btn danger"
+          title="End Call"
+          style="display: none"
+        >
+          ☎️
+        </button>
         <button id="theme-toggle" title="Toggle dark mode">🌙</button>
         <button id="showUsersBtn">☰ Menu</button>
       </div>
@@ -250,6 +348,10 @@
         <div id="sidebar-content">
           <div id="sidebar-users" class="sidebar-panel active">
             <div id="userListContainer">
+              <div id="connectedChatsContainer">
+                <h3>Private Chats</h3>
+                <div id="connectedChatsList"></div>
+              </div>
               <h3 style="margin: 0 0 12px 0">Online Users</h3>
               <div id="userList"></div>
             </div>
@@ -333,6 +435,10 @@
         </div>
       </div>
     </div>
+
+    <!-- Audio elements for WebRTC -->
+    <audio id="localAudio" autoplay muted></audio>
+    <audio id="remoteAudio" autoplay></audio>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="script.js"></script>
