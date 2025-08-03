@@ -1,6 +1,5 @@
 // Establish connection to the Socket.IO server
-// Use your actual server URL here. For local testing, it might be "http://localhost:3000"
-const socket = io("https://anonymous-chat-backend-1.onrender.com");
+const socket = io("http://localhost:3000");
 
 // --- DOM Element Selectors ---
 const form = document.getElementById("form");
@@ -785,11 +784,6 @@ clearCanvasBtn.addEventListener("click", () => {
   socket.emit("game:clear_canvas", currentRoom.id);
 });
 
-/**
- * REWRITTEN: This function updates the visibility and state of game control buttons.
- * It's now more direct and less prone to logical errors.
- * @param {object} state The current game state from the server.
- */
 function updateGameButtonVisibility(state) {
   const isCreator = state && state.creatorId === myId;
   const isGameRoom = currentRoom.id && currentRoom.id.startsWith("game-");
@@ -856,7 +850,8 @@ function updateGameRoomList(rooms) {
       const item = document.createElement("div");
       item.className = "game-room-item";
       const lockIcon = room.hasPassword ? "🔒 " : "";
-      const gameIcon = room.gameType === "doodle" ? "✏️" : "�";
+      // FIX: Corrected the broken emoji for hangman
+      const gameIcon = room.gameType === "doodle" ? "✏️" : "🤔";
       item.innerHTML = `<span title="${room.name} (by ${room.creatorName})">${gameIcon} ${lockIcon}${room.name} (${room.players.length}p)</span><button data-room-id="${room.id}">Join</button>`;
       const joinBtn = item.querySelector("button");
       if (
@@ -1040,20 +1035,19 @@ gameCanvas.addEventListener("touchstart", handleStart);
 gameCanvas.addEventListener("touchmove", handleMove);
 gameCanvas.addEventListener("touchend", handleEnd);
 
-// --- Hangman Specific Functions ---
+// --- REWRITTEN HANGMAN SPECIFIC FUNCTIONS ---
 function renderHangmanState(state) {
   if (!state || !hangmanGameContainer) return;
 
+  // Update timer
   if (state.isRoundActive && state.turnEndTime) {
     updateHangmanTimer(state.turnEndTime);
   } else {
     updateHangmanTimer(null);
   }
 
-  // Default to empty arrays if properties are missing before the game starts
+  // Render the word display (e.g., _ A _ A S _ R _ _ T)
   const displayWord = state.displayWord || [];
-  const incorrectGuesses = state.incorrectGuesses || [];
-
   hangmanWordDisplay.innerHTML = displayWord
     .map(
       (letter) =>
@@ -1063,17 +1057,22 @@ function renderHangmanState(state) {
     )
     .join("");
 
+  // Render the list of incorrect guesses
+  const incorrectGuesses = state.incorrectGuesses || [];
   hangmanIncorrectLetters.textContent = `Incorrect: ${incorrectGuesses
+    .filter((g) => g.trim() !== "") // Don't display timeouts
     .join(", ")
     .toUpperCase()}`;
 
+  // Update the hangman drawing based on the number of incorrect guesses
   const incorrectCount = incorrectGuesses.length;
-  // This sets the class on the hangman drawing container, which the CSS uses to show the parts
   hangmanDrawing.className = `incorrect-${incorrectCount}`;
 
+  // Control user input based on game state
   const isMyTurn = state.currentPlayerTurn === myId;
   input.disabled = !isMyTurn || !state.isRoundActive;
 
+  // Update game info text
   if (state.isGameOver) {
     hangmanGameInfo.textContent = state.winner
       ? `🎉 ${state.winner.name} won!`
@@ -1094,10 +1093,8 @@ function renderHangmanState(state) {
       input.placeholder = "Not your turn...";
     }
   } else {
+    // Game is in the lobby state
     if (state.creatorId === myId) {
-      // The game hasn't started, and this user is the creator.
-      // The message is handled by updateGameButtonVisibility, so we can leave this blank
-      // or set a default message.
       hangmanGameInfo.textContent = 'Press "Start Game" when ready.';
     } else {
       const creator = latestUsers.find((u) => u.id === state.creatorId);
