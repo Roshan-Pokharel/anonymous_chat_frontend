@@ -147,9 +147,7 @@ let isCallActive = false;
 let callPartnerId = null; // Stores the ID of the person we are in a call with
 let incomingCallData = null;
 
-// --- FIX: Using a more robust list of public STUN/TURN servers ---
-// Free servers can be unreliable. Adding more options increases the chance of a successful
-// connection. For a production app, a paid service (e.g., Twilio) is recommended.
+// --- Using a more robust list of public STUN/TURN servers ---
 const peerConnectionConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -1425,7 +1423,6 @@ async function createPeerConnection() {
 
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && callPartnerId) {
-      // console.log("🧊 Sending ICE candidate to peer:", event.candidate); // This is very noisy, enable if needed
       socket.emit("call:ice_candidate", {
         targetId: callPartnerId,
         candidate: event.candidate,
@@ -1433,10 +1430,16 @@ async function createPeerConnection() {
     }
   };
 
+  // --- FIX: Force audio playback on track event ---
   peerConnection.ontrack = (event) => {
     console.log("🎶 Received remote audio track.");
     if (event.streams && event.streams[0]) {
       remoteAudio.srcObject = event.streams[0];
+      // Try to play the audio element programmatically to handle autoplay restrictions.
+      remoteAudio.play().catch((error) => {
+        console.error("Remote audio play failed:", error);
+        displayError("Could not play partner's audio. Click page to enable.");
+      });
     }
   };
 
@@ -1543,7 +1546,6 @@ socket.on("call:answer_received", async ({ answer }) => {
 socket.on("call:ice_candidate_received", async ({ candidate }) => {
   if (peerConnection && candidate) {
     try {
-      // console.log("🧊 Received ICE candidate from peer, adding it."); // Very noisy
       await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (e) {
       console.error("Error adding received ice candidate", e);
