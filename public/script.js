@@ -146,6 +146,7 @@ let localStream;
 let isCallActive = false;
 let callPartnerId = null; // Stores the ID of the person we are in a call with
 let incomingCallData = null;
+let iceCandidateQueue = []; // ** NEW: Queue for ICE candidates
 
 // --- Using a more robust list of public STUN/TURN servers ---
 const peerConnectionConfig = {
@@ -1409,15 +1410,21 @@ async function createPeerConnection() {
     peerConnectionConfig
   );
   peerConnection = new RTCPeerConnection(peerConnectionConfig);
+  iceCandidateQueue = []; // ** MODIFIED: Reset queue for each new connection
 
-  // --- DEBUGGING: Log connection state changes ---
+  // --- MODIFIED: More robust connection state handling ---
   peerConnection.onconnectionstatechange = (event) => {
     console.log(
       `WebRTC Connection State Changed: %c${peerConnection.connectionState}`,
       "font-weight: bold;"
     );
     if (peerConnection.connectionState === "failed") {
-      displayError("Call connection failed. Please try again.");
+      displayError("Call connection failed. Trying to reconnect...");
+      // Attempt to restart the ICE process, which can recover the connection.
+      if (typeof peerConnection.restartIce === "function") {
+        console.log("Attempting ICE restart...");
+        peerConnection.restartIce();
+      }
     }
   };
 
@@ -1430,12 +1437,10 @@ async function createPeerConnection() {
     }
   };
 
-  // --- FIX: Force audio playback on track event ---
   peerConnection.ontrack = (event) => {
     console.log("🎶 Received remote audio track.");
     if (event.streams && event.streams[0]) {
       remoteAudio.srcObject = event.streams[0];
-      // Try to play the audio element programmatically to handle autoplay restrictions.
       remoteAudio.play().catch((error) => {
         console.error("Remote audio play failed:", error);
         displayError("Could not play partner's audio. Click page to enable.");
@@ -1534,19 +1539,39 @@ socket.on("call:incoming", async ({ from, offer }) => {
 
 socket.on("call:answer_received", async ({ answer }) => {
   console.log("Answer: Received from peer.");
-  if (peerConnection) {
+  if (peerConnection && peerConnection.signalingState === "have-local-offer") {
     await peerConnection.setRemoteDescription(
       new RTCSessionDescription(answer)
     );
     console.log("Answer: Remote description set.");
+
+    // ** MODIFIED: Process any queued ICE candidates now **
+    console.log(
+      `🧊 Processing ${iceCandidateQueue.length} queued ICE candidates.`
+    );
+    iceCandidateQueue.forEach((candidate) =>
+      peerConnection
+        .addIceCandidate(new RTCIceCandidate(candidate))
+        .catch((e) => console.error("Error adding queued ICE candidate", e))
+    );
+    iceCandidateQueue = [];
+
     showGameOverlayMessage("✅ Call connected.", 2000, "success");
   }
 });
 
+// ** MODIFIED: This now queues candidates if the connection isn't ready **
 socket.on("call:ice_candidate_received", async ({ candidate }) => {
   if (peerConnection && candidate) {
     try {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      if (peerConnection.remoteDescription) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } else {
+        iceCandidateQueue.push(candidate);
+        console.log(
+          "🧊 Queued an ICE candidate because remote description is not set yet."
+        );
+      }
     } catch (e) {
       console.error("Error adding received ice candidate", e);
     }
@@ -1598,6 +1623,17 @@ acceptCallBtn.addEventListener("click", async () => {
 
     console.log("Answer: Setting remote description from offer.");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+    // ** MODIFIED: Process any queued ICE candidates now **
+    console.log(
+      `🧊 Processing ${iceCandidateQueue.length} queued ICE candidates.`
+    );
+    iceCandidateQueue.forEach((candidate) =>
+      peerConnection
+        .addIceCandidate(new RTCIceCandidate(candidate))
+        .catch((e) => console.error("Error adding queued ICE candidate", e))
+    );
+    iceCandidateQueue = [];
 
     console.log("Answer: Creating answer...");
     const answer = await peerConnection.createAnswer();
