@@ -150,18 +150,21 @@ let incomingCallData = null;
 let iceCandidateQueue = [];
 let isNegotiating = false; // Flag to prevent signaling collisions
 
-// --- WebRTC Configuration ---
-// For a production app, you should use a paid TURN server service like Twilio or Xirsys
-// for better reliability across different network types.
-// Public STUN servers are good for development and simple network setups.
+// --- WebRTC Configuration (IMPROVED) ---
+// This configuration includes a wider range of public STUN and TURN servers
+// to improve the chances of successfully connecting peers across different networks.
+// For a real-world production app, a paid TURN server service (e.g., Twilio, Xirsys)
+// is strongly recommended for reliability.
 const peerConnectionConfig = {
   iceServers: [
+    // Standard Google STUN servers
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
+    // Other public STUN servers
     { urls: "stun:stun.services.mozilla.com" },
-    // Adding a public TURN server for better connectivity.
-    // NOTE: Public TURN servers might be slow or unreliable. A paid service is recommended for production.
+    { urls: "stun:stun.stunprotocol.org:3478" },
+    // Public TURN servers (can be unreliable, but better than nothing)
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
@@ -172,7 +175,20 @@ const peerConnectionConfig = {
       username: "openrelayproject",
       credential: "openrelayproject",
     },
+    {
+      // A TURN server that supports both UDP (turn:) and TCP/TLS (turns:)
+      // 'turns:' is useful for bypassing firewalls that block UDP.
+      urls: [
+        "turn:relay.metered.ca:80",
+        "turns:relay.metered.ca:443", // Using TLS
+      ],
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
+  // This setting can sometimes help speed up the connection process
+  // by gathering ICE candidates before they are immediately needed.
+  iceCandidatePoolSize: 10,
 };
 
 const predefinedBackgrounds = [

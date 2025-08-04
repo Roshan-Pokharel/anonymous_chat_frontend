@@ -16,7 +16,6 @@
     />
   </head>
   <body>
-    <!-- User Profile Modal -->
     <div id="userModal" class="modal" style="display: none">
       <form id="userForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -51,7 +50,6 @@
       </form>
     </div>
 
-    <!-- Incoming Private Chat Request Modal -->
     <div id="privateRequestModal" class="modal" style="display: none">
       <div class="modal-content">
         <h2
@@ -81,7 +79,6 @@
       </div>
     </div>
 
-    <!-- Disconnect Confirmation Modal -->
     <div id="disconnectModal" class="modal" style="display: none">
       <div class="modal-content">
         <h2 style="text-align: center; color: var(--danger-color)">
@@ -99,7 +96,6 @@
       </div>
     </div>
 
-    <!-- Incoming Call Modal -->
     <div id="incomingCallModal" class="modal" style="display: none">
       <div class="modal-content">
         <h2
@@ -129,7 +125,6 @@
       </div>
     </div>
 
-    <!-- Create Game Modal -->
     <div id="createGameModal" class="modal" style="display: none">
       <form id="createGameForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -169,7 +164,6 @@
       </form>
     </div>
 
-    <!-- Password Prompt Modal -->
     <div id="passwordPromptModal" class="modal" style="display: none">
       <form id="passwordPromptForm" class="modal-content">
         <h2 style="margin-bottom: 18px; color: #4f46e5; text-align: center">
@@ -210,7 +204,6 @@
       </form>
     </div>
 
-    <!-- Scoreboard Modal -->
     <div id="scoreboardModal" class="modal" style="display: none">
       <div class="modal-content">
         <h2 id="scoreboardTitle">🏆 Game Over!</h2>
@@ -221,7 +214,6 @@
       </div>
     </div>
 
-    <!-- How to Play Modal -->
     <div id="howToPlayModal" class="modal" style="display: none">
       <div id="howToPlayContent" class="modal-content">
         <h2 id="howToPlayTitle" style="color: #4f46e5; text-align: center"></h2>
@@ -232,7 +224,6 @@
       </div>
     </div>
 
-    <!-- Mobile Menu Modal -->
     <div id="allUsersModal" class="modal" style="display: none">
       <div id="mobileModalContent" class="modal-content">
         <div id="mobileModalNav">
@@ -307,7 +298,6 @@
       </div>
     </div>
 
-    <!-- Top Bar -->
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
@@ -332,9 +322,7 @@
       </div>
     </div>
 
-    <!-- Main Container -->
     <div class="container">
-      <!-- Sidebar -->
       <div id="sidebar">
         <div id="sidebar-nav">
           <button class="sidebar-nav-btn active" data-panel="sidebar-users">
@@ -382,9 +370,7 @@
         </div>
       </div>
 
-      <!-- Chat & Game Area -->
       <div id="chat">
-        <!-- Doodle Dash Game -->
         <div id="doodleGameContainer" style="display: none">
           <div id="gameTimer" class="game-timer"></div>
           <div id="gameInfo"></div>
@@ -395,16 +381,13 @@
           <div id="gameOverlayMessage" class="game-overlay-message"></div>
         </div>
 
-        <!-- Hangman Game -->
         <div id="hangmanGameContainer" style="display: none">
           <div id="hangmanTimer" class="game-timer"></div>
           <div id="hangmanDrawing">
-            <!-- Gallows parts will be styled with CSS -->
             <div class="hg-part gallows-base"></div>
             <div class="hg-part gallows-pole"></div>
             <div class="hg-part gallows-beam"></div>
             <div class="hg-part gallows-rope"></div>
-            <!-- Hangman parts will be shown based on state -->
             <div class="hg-part hg-head"></div>
             <div class="hg-part hg-body"></div>
             <div class="hg-part hg-arm-left"></div>
@@ -436,10 +419,7 @@
       </div>
     </div>
 
-    <!-- Audio elements for WebRTC -->
-    <!-- `muted` is essential for local audio autoplay -->
     <audio id="localAudio" autoplay muted playsinline></audio>
-    <!-- `playsinline` helps with autoplay on mobile -->
     <audio id="remoteAudio" autoplay playsinline></audio>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
