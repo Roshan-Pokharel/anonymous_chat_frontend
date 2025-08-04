@@ -148,49 +148,32 @@ let isCallActive = false;
 let callPartnerId = null;
 let incomingCallData = null;
 let iceCandidateQueue = [];
-let isNegotiating = false; // Flag to prevent signaling collisions
+let isNegotiating = false;
 
-// --- WebRTC Configuration (IMPROVED) ---
-// This configuration includes a wider range of public STUN and TURN servers
-// to improve the chances of successfully connecting peers across different networks.
-// For a real-world production app, a paid TURN server service (e.g., Twilio, Xirsys)
-// is strongly recommended for reliability.
+// --- WebRTC Configuration (REFINED) ---
 const peerConnectionConfig = {
   iceServers: [
-    // Standard Google STUN servers
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    // Other public STUN servers
     { urls: "stun:stun.services.mozilla.com" },
-    { urls: "stun:stun.stunprotocol.org:3478" },
-    // Public TURN servers (can be unreliable, but better than nothing)
+    {
+      urls: [
+        "turn:relay.metered.ca:80",
+        "turns:relay.metered.ca:443", // Using TLS for better firewall traversal
+      ],
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
       credential: "openrelayproject",
     },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      // A TURN server that supports both UDP (turn:) and TCP/TLS (turns:)
-      // 'turns:' is useful for bypassing firewalls that block UDP.
-      urls: [
-        "turn:relay.metered.ca:80",
-        "turns:relay.metered.ca:443", // Using TLS
-      ],
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
   ],
-  // This setting can sometimes help speed up the connection process
-  // by gathering ICE candidates before they are immediately needed.
   iceCandidatePoolSize: 10,
 };
 
+// ... (predefinedBackgrounds and other initial constants are unchanged)
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1575&auto=format&fit=crop",
@@ -203,6 +186,7 @@ const predefinedBackgrounds = [
 ];
 
 // --- Initialization ---
+// ... (this section is unchanged)
 window.addEventListener("load", () => {
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
@@ -220,6 +204,7 @@ window.addEventListener("resize", () => {
 });
 
 // --- Event Listeners ---
+// ... (most listeners are unchanged)
 input.addEventListener("input", () => {
   if (!isTyping) {
     isTyping = true;
@@ -277,6 +262,7 @@ scoreboardModal.addEventListener("click", (e) => {
 closeScoreboardBtn.onclick = () => (scoreboardModal.style.display = "none");
 
 // --- Mobile Tab Navigation ---
+// ... (this section is unchanged)
 const mobileTabOrder = ["users", "game", "appearance"];
 function switchMobileTab(tabName) {
   const tabIndex = mobileTabOrder.indexOf(tabName);
@@ -339,6 +325,7 @@ sidebarNav.addEventListener("click", (e) => {
 });
 
 // --- Socket Event Handlers ---
+// ... (most socket handlers are unchanged)
 socket.on("connect", () => {
   myId = socket.id;
   console.log("✅ Connected to server with ID:", myId);
@@ -399,7 +386,7 @@ socket.on("chat message", (msg) => {
 });
 
 // --- Core Functions ---
-
+// ... (these functions are unchanged)
 function checkForPersistedLogin() {
   try {
     const storedUser = JSON.parse(localStorage.getItem("userInfo"));
@@ -636,6 +623,7 @@ function switchRoom(roomId, title, roomType) {
 }
 
 // --- Helper & UI Functions ---
+// ... (these functions are unchanged)
 function generateColorFromId(id) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
@@ -708,6 +696,7 @@ function populateBackgroundOptions(container) {
 }
 
 // --- PRIVATE CHAT REQUESTS ---
+// ... (this section is unchanged)
 function initiatePrivateChat(targetUser) {
   if (recentlyDeclinedBy[targetUser.id]) {
     displayError(
@@ -812,6 +801,7 @@ declineRequestBtn.addEventListener("click", () => {
 });
 
 // --- PRIVATE CHAT DISCONNECT ---
+// ... (this section is unchanged)
 function showDisconnectConfirm(roomId) {
   disconnectTarget = roomId;
   disconnectModal.style.display = "flex";
@@ -852,6 +842,7 @@ socket.on("private:partner_left", ({ room, partnerName }) => {
 });
 
 // --- GAME LOGIC ---
+// ... (this entire section, including all game functions, is unchanged)
 const openHowToPlayModal = () => {
   const gameType = currentGameState.gameType || "doodle";
   howToPlayTitle.textContent =
@@ -949,7 +940,6 @@ function updateHangmanTimer(endTime) {
   hangmanCountdownInterval = setInterval(update, 1000);
 }
 
-// --- Socket Game Event Handlers ---
 socket.on("game:roomsList", updateGameRoomList);
 socket.on("game:joined", (roomData) => {
   if (passwordPromptModal.style.display === "flex")
@@ -1034,7 +1024,6 @@ socket.on("game:clear_canvas", () => {
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 });
 
-// --- Game UI and Actions ---
 function handleCreateGameRoom() {
   createGameModal.style.display = "flex";
   roomNameInput.focus();
@@ -1229,7 +1218,6 @@ function endGame(hideContainers = true) {
   input.placeholder = "Type your message or guess...";
 }
 
-// --- Doodle Dash Specific Functions ---
 function renderDoodleState(state) {
   if (state.isRoundActive) {
     const isDrawer = state.drawer && state.drawer.id === myId;
@@ -1344,7 +1332,6 @@ gameCanvas.addEventListener("touchstart", handleStart);
 gameCanvas.addEventListener("touchmove", handleMove);
 gameCanvas.addEventListener("touchend", handleEnd);
 
-// --- HANGMAN SPECIFIC FUNCTIONS ---
 function renderHangmanState(state) {
   if (!state || !hangmanGameContainer) return;
   if (state.isRoundActive && state.turnEndTime) {
@@ -1408,10 +1395,10 @@ function renderHangmanState(state) {
 }
 
 // ===================================================================================
-// --- 📞 AUDIO CALL (WEBRTC) REWRITE ---
-// This section has been rewritten for improved reliability and network traversal.
+// --- 📞 AUDIO CALL (WEBRTC) - REVISED FOR STATEFUL SIGNALING ---
 // ===================================================================================
 
+// ... (updateCallButtonVisibility, createPeerConnection, handleConnectionFailure are largely unchanged)
 function updateCallButtonVisibility() {
   const isPrivateChat = currentRoom.type === "private";
   startCallBtn.style.display =
@@ -1439,12 +1426,9 @@ async function createPeerConnection() {
   iceCandidateQueue = [];
   isNegotiating = false;
 
-  // --- Event Listeners for the Peer Connection ---
-
-  // Fired when a new ICE candidate is gathered
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && callPartnerId) {
-      console.log("🧊 Sending ICE candidate to peer");
+      // console.log("🧊 Sending ICE candidate to peer"); // This can be noisy
       socket.emit("call:ice_candidate", {
         targetId: callPartnerId,
         candidate: event.candidate,
@@ -1452,7 +1436,6 @@ async function createPeerConnection() {
     }
   };
 
-  // Fired when the connection state changes (e.g., connected, failed)
   peerConnection.onconnectionstatechange = () => {
     console.log(
       `WebRTC Connection State Changed: %c${peerConnection.connectionState}`,
@@ -1475,20 +1458,16 @@ async function createPeerConnection() {
         break;
       case "closed":
         console.log("Call connection closed.");
-        endCall(false); // Clean up without notifying peer again
+        endCall(false);
         break;
     }
   };
 
-  // Fired when the signaling state changes
   peerConnection.onsignalingstatechange = () => {
-    console.log(
-      `WebRTC Signaling State Changed: ${peerConnection.signalingState}`
-    );
+    // console.log(`WebRTC Signaling State Changed: ${peerConnection.signalingState}`);
     isNegotiating = peerConnection.signalingState !== "stable";
   };
 
-  // Fired when a remote audio/video track is received
   peerConnection.ontrack = (event) => {
     console.log("🎶 Received remote audio track.");
     if (event.streams && event.streams[0]) {
@@ -1500,32 +1479,31 @@ async function createPeerConnection() {
     }
   };
 
-  // This event is crucial for the "perfect negotiation" pattern, allowing for seamless renegotiation
+  // onnegotiationneeded is still useful for handling renegotiations during an active call
   peerConnection.onnegotiationneeded = async () => {
     if (isNegotiating) {
-      console.log(
-        "Skipping negotiationneeded event due to ongoing negotiation"
-      );
+      console.log("Skipping negotiationneeded due to ongoing negotiation");
       return;
     }
     isNegotiating = true;
     try {
-      console.log("🤝 Negotiation needed, creating offer...");
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      socket.emit("call:offer", {
-        targetId: callPartnerId,
-        offer: peerConnection.localDescription,
-      });
+      // Only create an offer if the connection is already established (i.e., this is a renegotiation)
+      if (peerConnection.signalingState === "stable" && isCallActive) {
+        console.log("🤝 Renegotiation needed, creating offer...");
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit("call:offer", {
+          targetId: callPartnerId,
+          offer: peerConnection.localDescription,
+        });
+      }
     } catch (err) {
       console.error("Error during negotiationneeded event:", err);
-      displayError("An error occurred during call negotiation.");
     } finally {
       isNegotiating = false;
     }
   };
 
-  // Add local audio track to the connection if it already exists
   if (localStream) {
     localStream.getTracks().forEach((track) => {
       peerConnection.addTrack(track, localStream);
@@ -1533,7 +1511,6 @@ async function createPeerConnection() {
   }
 }
 
-// Tries to recover a failed connection using ICE restart
 function handleConnectionFailure() {
   if (peerConnection.connectionState === "failed") {
     console.log("Attempting to recover connection with ICE restart...");
@@ -1558,7 +1535,7 @@ async function startCall() {
   callPartnerId = partnerInfo.id;
   isCallActive = true;
   updateCallButtonVisibility();
-  showGameOverlayMessage(`📞 Calling ${partnerInfo.name}...`, 3000, "system");
+  showGameOverlayMessage(`📞 Calling ${partnerInfo.name}...`, 5000, "system");
 
   try {
     console.log("🎤 Requesting microphone permissions...");
@@ -1566,24 +1543,33 @@ async function startCall() {
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
 
-    await createPeerConnection(); // This will now trigger onnegotiationneeded
+    await createPeerConnection();
+
+    // Now, create the initial offer and send it
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    socket.emit("call:offer", {
+      targetId: callPartnerId,
+      offer: peerConnection.localDescription,
+    });
   } catch (err) {
     console.error("Error starting call:", err);
     displayError("Could not start call. Check microphone permissions.");
-    endCall(false);
+    endCall(true); // End the call attempt if permissions fail
   }
 }
 
 function endCall(notifyPeer = true) {
-  console.log(`☎️ Ending call. Notify peer: ${notifyPeer}`);
   if (!isCallActive && !incomingCallData && !peerConnection) return;
+
+  console.log(`☎️ Ending call. Notify peer: ${notifyPeer}`);
 
   if (notifyPeer && callPartnerId) {
     socket.emit("call:end");
   }
 
   if (peerConnection) {
-    // Remove listeners to prevent memory leaks
     peerConnection.onicecandidate = null;
     peerConnection.onconnectionstatechange = null;
     peerConnection.ontrack = null;
@@ -1598,6 +1584,7 @@ function endCall(notifyPeer = true) {
 
   remoteAudio.srcObject = null;
   localAudio.srcObject = null;
+
   isCallActive = false;
   callPartnerId = null;
   incomingCallData = null;
@@ -1609,74 +1596,69 @@ function endCall(notifyPeer = true) {
   updateCallButtonVisibility();
 }
 
-// --- AUDIO CALL (WEBRTC) SOCKET HANDLERS ---
+// --- REVISED AUDIO CALL SOCKET HANDLERS ---
 socket.on("call:incoming", async ({ from, offer }) => {
-  console.log(`📞 Incoming call from ${from.name} (${from.id})`);
-
-  // --- REVISED LOGIC FOR RENEGOTIATION & GLARE HANDLING ---
-  const isRenegotiation = peerConnection && callPartnerId === from.id;
-
-  if (isRenegotiation) {
-    console.log("🤝 Handling renegotiation offer...");
-    try {
-      // This is "glare" handling. If we are not 'stable', it means we are also trying to send an offer.
-      // We should ignore the incoming offer if we are not stable, as our own offer is in flight.
-      if (peerConnection.signalingState !== "stable") {
-        console.warn(
-          "Glare detected: Ignoring incoming offer while not in stable state."
-        );
-        return;
-      }
-      await peerConnection.setRemoteDescription(
-        new RTCSessionDescription(offer)
-      );
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      socket.emit("call:answer", {
-        targetId: from.id,
-        answer: peerConnection.localDescription,
-      });
-    } catch (err) {
-      console.error("Error during renegotiation:", err);
-    }
-    return; // End execution here, do not show modal.
-  }
-
-  // --- ORIGINAL LOGIC FOR A NEW CALL ---
-  if (isCallActive || incomingCallData || peerConnection) {
-    console.log("   -> User is busy. Declining automatically.");
+  if (isCallActive || incomingCallData) {
+    // This case should be largely prevented by the server's new state machine, but it's good client-side protection.
+    console.warn(
+      "Received incoming call while already in a call/ringing. Declining."
+    );
     socket.emit("call:decline", { targetId: from.id, reason: "busy" });
     return;
   }
 
+  // Handle renegotiation offers during an active call
+  if (peerConnection && peerConnection.signalingState !== "stable") {
+    // This is the polite peer's role in glare handling for renegotiations
+    console.log("Ignoring renegotiation offer while not in stable state.");
+    return;
+  }
+  if (peerConnection) {
+    console.log("Handling renegotiation offer.");
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    socket.emit("call:answer", {
+      targetId: from.id,
+      answer: peerConnection.localDescription,
+    });
+    return;
+  }
+
+  // This is a new call
+  console.log(`📞 Incoming call from ${from.name}`);
   incomingCallData = { from, offer };
   incomingCallFrom.textContent = `${from.name} is calling`;
   incomingCallModal.style.display = "flex";
 });
 
+// NEW: Listen for 'busy' signal from server
+socket.on("call:busy", ({ from }) => {
+  showGameOverlayMessage(`❌ ${from.name} is currently busy.`, 3000, "system");
+  endCall(false); // Clean up the failed call attempt
+});
+
+// NEW: Listen for generic call errors from server
+socket.on("call:error", (message) => {
+  displayError(message);
+  endCall(false);
+});
+
 socket.on("call:answer_received", async ({ answer }) => {
-  if (!peerConnection || peerConnection.signalingState !== "have-local-offer") {
-    console.warn("Received an answer without having a local offer. Ignoring.");
-    return;
-  }
+  if (!peerConnection)
+    return console.error("Received answer but no peer connection exists.");
 
   console.log("✅ Answer received from peer.");
   try {
     await peerConnection.setRemoteDescription(
       new RTCSessionDescription(answer)
     );
-    console.log("✅ Remote description (answer) set.");
-
-    // Process any queued ICE candidates
     iceCandidateQueue.forEach((candidate) =>
-      peerConnection
-        .addIceCandidate(candidate)
-        .catch((e) => console.error("Error adding queued ICE candidate", e))
+      peerConnection.addIceCandidate(candidate)
     );
     iceCandidateQueue = [];
   } catch (err) {
     console.error("Error setting remote description for answer:", err);
-    displayError("Failed to establish call connection.");
   }
 });
 
@@ -1687,18 +1669,17 @@ socket.on("call:ice_candidate_received", async ({ candidate }) => {
       await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } else {
       iceCandidateQueue.push(candidate);
-      console.log("🧊 Queued an ICE candidate (remote description not set).");
     }
   } catch (e) {
-    console.error("Error adding received ICE candidate:", e);
+    // console.error("Error adding received ICE candidate:", e); // Can be noisy
   }
 });
 
 socket.on("call:declined", ({ from, reason }) => {
   let message = `❌ ${from.name || "User"} declined the call.`;
-  if (reason === "busy") {
+  if (reason === "busy")
     message = `❌ ${from.name || "User"} is busy on another call.`;
-  }
+
   showGameOverlayMessage(message, 2000, "system");
   endCall(false);
 });
@@ -1708,7 +1689,7 @@ socket.on("call:ended", () => {
   endCall(false);
 });
 
-// --- AUDIO CALL (WEBRTC) EVENT LISTENERS ---
+// --- AUDIO CALL EVENT LISTENERS ---
 startCallBtn.addEventListener("click", startCall);
 endCallBtn.addEventListener("click", () => endCall(true));
 
@@ -1748,12 +1729,12 @@ acceptCallBtn.addEventListener("click", async () => {
       targetId: from.id,
       answer: peerConnection.localDescription,
     });
-
-    incomingCallData = null;
   } catch (err) {
     console.error("Error accepting call:", err);
     displayError("Could not accept call. Check microphone permissions.");
     endCall(true);
+  } finally {
+    incomingCallData = null;
   }
 });
 
@@ -1764,7 +1745,7 @@ declineCallBtn.addEventListener("click", () => {
       targetId: incomingCallData.from.id,
       reason: "declined",
     });
+    incomingCallModal.style.display = "none";
+    incomingCallData = null;
   }
-  incomingCallModal.style.display = "none";
-  incomingCallData = null;
 });
