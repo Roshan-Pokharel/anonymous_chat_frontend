@@ -145,9 +145,10 @@ let hangmanCountdownInterval = null;
 let peerConnection;
 let localStream;
 let isCallActive = false;
-let callPartnerId = null; // ✅ FIX: The single source of truth for the call partner's ID
+let callPartnerId = null;
 let incomingCallData = null;
 let iceCandidateQueue = [];
+let isNegotiating = false; // Flag to prevent signaling collisions
 
 // --- WebRTC Configuration ---
 // For a production app, you should use a paid TURN server service like Twilio or Xirsys
@@ -160,7 +161,7 @@ const peerConnectionConfig = {
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun.services.mozilla.com" },
     // Adding a public TURN server for better connectivity.
-    // NOTE: Public TURN servers might be slow or unreliable.
+    // NOTE: Public TURN servers might be slow or unreliable. A paid service is recommended for production.
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
@@ -584,7 +585,7 @@ function updateUserList(container) {
 }
 
 function switchRoom(roomId, title, roomType) {
-  // ✅ FIX: Block room switching while in a call
+  // Block room switching while in a call
   if (isCallActive) {
     displayError("Please end the current call before switching rooms.");
     return;
@@ -1390,7 +1391,10 @@ function renderHangmanState(state) {
   }
 }
 
-// --- AUDIO CALL (WEBRTC) FUNCTIONS ---
+// ===================================================================================
+// --- 📞 AUDIO CALL (WEBRTC) REWRITE ---
+// This section has been rewritten for improved reliability and network traversal.
+// ===================================================================================
 
 function updateCallButtonVisibility() {
   const isPrivateChat = currentRoom.type === "private";
@@ -1416,21 +1420,15 @@ async function createPeerConnection() {
     peerConnectionConfig
   );
   peerConnection = new RTCPeerConnection(peerConnectionConfig);
-  iceCandidateQueue = []; // Reset queue for each new connection
+  iceCandidateQueue = [];
+  isNegotiating = false;
 
-  peerConnection.onconnectionstatechange = (event) => {
-    console.log(
-      `WebRTC Connection State Changed: %c${peerConnection.connectionState}`,
-      "font-weight: bold;"
-    );
-    if (peerConnection.connectionState === "failed") {
-      displayError("Call connection failed. Please try again.");
-      endCall(false); // End the call cleanly on failure
-    }
-  };
+  // --- Event Listeners for the Peer Connection ---
 
+  // Fired when a new ICE candidate is gathered
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && callPartnerId) {
+      console.log("🧊 Sending ICE candidate to peer");
       socket.emit("call:ice_candidate", {
         targetId: callPartnerId,
         candidate: event.candidate,
@@ -1438,11 +1436,47 @@ async function createPeerConnection() {
     }
   };
 
+  // Fired when the connection state changes (e.g., connected, failed)
+  peerConnection.onconnectionstatechange = () => {
+    console.log(
+      `WebRTC Connection State Changed: %c${peerConnection.connectionState}`,
+      "font-weight: bold;"
+    );
+    switch (peerConnection.connectionState) {
+      case "connected":
+        showGameOverlayMessage("✅ Call connected.", 2000, "success");
+        break;
+      case "disconnected":
+        showGameOverlayMessage(
+          "⚠️ Call disconnected. Attempting to reconnect...",
+          3000,
+          "system"
+        );
+        break;
+      case "failed":
+        displayError("Call connection failed. Please try again.");
+        handleConnectionFailure();
+        break;
+      case "closed":
+        console.log("Call connection closed.");
+        endCall(false); // Clean up without notifying peer again
+        break;
+    }
+  };
+
+  // Fired when the signaling state changes
+  peerConnection.onsignalingstatechange = () => {
+    console.log(
+      `WebRTC Signaling State Changed: ${peerConnection.signalingState}`
+    );
+    isNegotiating = peerConnection.signalingState !== "stable";
+  };
+
+  // Fired when a remote audio/video track is received
   peerConnection.ontrack = (event) => {
     console.log("🎶 Received remote audio track.");
     if (event.streams && event.streams[0]) {
       remoteAudio.srcObject = event.streams[0];
-      // ✅ FIX: Catch errors from play() due to browser autoplay policies
       remoteAudio.play().catch((error) => {
         console.error("Remote audio play failed:", error);
         displayError("Could not play partner's audio. Click page to enable.");
@@ -1450,6 +1484,32 @@ async function createPeerConnection() {
     }
   };
 
+  // This event is crucial for the "perfect negotiation" pattern, allowing for seamless renegotiation
+  peerConnection.onnegotiationneeded = async () => {
+    if (isNegotiating) {
+      console.log(
+        "Skipping negotiationneeded event due to ongoing negotiation"
+      );
+      return;
+    }
+    isNegotiating = true;
+    try {
+      console.log("🤝 Negotiation needed, creating offer...");
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit("call:offer", {
+        targetId: callPartnerId,
+        offer: peerConnection.localDescription,
+      });
+    } catch (err) {
+      console.error("Error during negotiationneeded event:", err);
+      displayError("An error occurred during call negotiation.");
+    } finally {
+      isNegotiating = false;
+    }
+  };
+
+  // Add local audio track to the connection if it already exists
   if (localStream) {
     localStream.getTracks().forEach((track) => {
       peerConnection.addTrack(track, localStream);
@@ -1457,16 +1517,32 @@ async function createPeerConnection() {
   }
 }
 
+// Tries to recover a failed connection using ICE restart
+function handleConnectionFailure() {
+  if (peerConnection.connectionState === "failed") {
+    console.log("Attempting to recover connection with ICE restart...");
+    showGameOverlayMessage(
+      "Connection unstable, trying to reconnect...",
+      3000,
+      "system"
+    );
+    peerConnection.restartIce();
+  }
+}
+
 async function startCall() {
   if (isCallActive || currentRoom.type !== "private") return;
 
-  // ✅ FIX: Get partner ID from the connectedRooms object for reliability
   const partnerInfo = connectedRooms[currentRoom.id]?.withUser;
   if (!partnerInfo) {
     displayError("Could not find a user in this private chat to call.");
     return;
   }
-  const otherUserId = partnerInfo.id;
+
+  callPartnerId = partnerInfo.id;
+  isCallActive = true;
+  updateCallButtonVisibility();
+  showGameOverlayMessage(`📞 Calling ${partnerInfo.name}...`, 3000, "system");
 
   try {
     console.log("🎤 Requesting microphone permissions...");
@@ -1474,40 +1550,28 @@ async function startCall() {
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
 
-    callPartnerId = otherUserId;
-    isCallActive = true;
-    updateCallButtonVisibility();
-
-    await createPeerConnection();
-
-    console.log("Offer: Creating offer...");
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    console.log("Offer: Local description set.");
-
-    console.log(
-      "Offer: Emitting 'call:offer' to server for target:",
-      callPartnerId
-    );
-    socket.emit("call:offer", { targetId: callPartnerId, offer });
-
-    showGameOverlayMessage("📞 Calling...", 2000, "system");
+    await createPeerConnection(); // This will now trigger onnegotiationneeded
   } catch (err) {
     console.error("Error starting call:", err);
     displayError("Could not start call. Check microphone permissions.");
-    endCall(false); // Don't notify peer if we failed to even start
+    endCall(false);
   }
 }
 
 function endCall(notifyPeer = true) {
   console.log(`☎️ Ending call. Notify peer: ${notifyPeer}`);
-  if (!isCallActive && !incomingCallData) return;
+  if (!isCallActive && !incomingCallData && !peerConnection) return;
 
   if (notifyPeer && callPartnerId) {
-    socket.emit("call:end"); // Server knows who the partner is
+    socket.emit("call:end");
   }
 
   if (peerConnection) {
+    // Remove listeners to prevent memory leaks
+    peerConnection.onicecandidate = null;
+    peerConnection.onconnectionstatechange = null;
+    peerConnection.ontrack = null;
+    peerConnection.onnegotiationneeded = null;
     peerConnection.close();
     peerConnection = null;
   }
@@ -1521,8 +1585,10 @@ function endCall(notifyPeer = true) {
   isCallActive = false;
   callPartnerId = null;
   incomingCallData = null;
-  incomingCallModal.style.display = "none";
+  isNegotiating = false;
+  iceCandidateQueue = [];
 
+  incomingCallModal.style.display = "none";
   showGameOverlayMessage("Call ended.", 2000, "system");
   updateCallButtonVisibility();
 }
@@ -1530,7 +1596,7 @@ function endCall(notifyPeer = true) {
 // --- AUDIO CALL (WEBRTC) SOCKET HANDLERS ---
 socket.on("call:incoming", async ({ from, offer }) => {
   console.log(`📞 Incoming call from ${from.name} (${from.id})`);
-  if (isCallActive || incomingCallData) {
+  if (isCallActive || incomingCallData || peerConnection) {
     console.log("   -> User is busy. Declining automatically.");
     socket.emit("call:decline", { targetId: from.id, reason: "busy" });
     return;
@@ -1542,43 +1608,42 @@ socket.on("call:incoming", async ({ from, offer }) => {
 });
 
 socket.on("call:answer_received", async ({ answer }) => {
-  console.log("Answer: Received from peer.");
-  if (peerConnection && peerConnection.signalingState === "have-local-offer") {
+  if (!peerConnection || peerConnection.signalingState !== "have-local-offer") {
+    console.warn("Received an answer without having a local offer. Ignoring.");
+    return;
+  }
+
+  console.log("✅ Answer received from peer.");
+  try {
     await peerConnection.setRemoteDescription(
       new RTCSessionDescription(answer)
     );
-    console.log("Answer: Remote description set.");
+    console.log("✅ Remote description (answer) set.");
 
-    // ✅ FIX: Process any queued ICE candidates now that the connection is established
-    console.log(
-      `🧊 Processing ${iceCandidateQueue.length} queued ICE candidates.`
-    );
+    // Process any queued ICE candidates
     iceCandidateQueue.forEach((candidate) =>
       peerConnection
-        .addIceCandidate(new RTCIceCandidate(candidate))
+        .addIceCandidate(candidate)
         .catch((e) => console.error("Error adding queued ICE candidate", e))
     );
     iceCandidateQueue = [];
-
-    showGameOverlayMessage("✅ Call connected.", 2000, "success");
+  } catch (err) {
+    console.error("Error setting remote description for answer:", err);
+    displayError("Failed to establish call connection.");
   }
 });
 
-// ✅ FIX: Queue ICE candidates if the remote description isn't set yet
 socket.on("call:ice_candidate_received", async ({ candidate }) => {
-  if (peerConnection && candidate) {
-    try {
-      if (peerConnection.remoteDescription) {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-      } else {
-        iceCandidateQueue.push(candidate);
-        console.log(
-          "🧊 Queued an ICE candidate because remote description is not set yet."
-        );
-      }
-    } catch (e) {
-      console.error("Error adding received ice candidate", e);
+  if (!peerConnection) return;
+  try {
+    if (peerConnection.remoteDescription) {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    } else {
+      iceCandidateQueue.push(candidate);
+      console.log("🧊 Queued an ICE candidate (remote description not set).");
     }
+  } catch (e) {
+    console.error("Error adding received ICE candidate:", e);
   }
 });
 
@@ -1612,19 +1677,19 @@ acceptCallBtn.addEventListener("click", async () => {
     switchRoom(privateRoomId, `🔒 Chat with ${from.name}`, "private");
   }
 
+  callPartnerId = from.id;
+  isCallActive = true;
+  updateCallButtonVisibility();
+
   try {
     console.log("🎤 Requesting microphone permissions for accepting call...");
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
 
-    callPartnerId = from.id;
-    isCallActive = true;
-    updateCallButtonVisibility();
-
     await createPeerConnection();
 
-    console.log("Answer: Setting remote description from offer.");
+    console.log("Offer: Setting remote description from incoming offer.");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
     console.log("Answer: Creating answer...");
@@ -1632,12 +1697,10 @@ acceptCallBtn.addEventListener("click", async () => {
     await peerConnection.setLocalDescription(answer);
     console.log("Answer: Local description set.");
 
-    console.log(
-      "Answer: Emitting 'call:answer' to server for target:",
-      from.id
-    );
-    socket.emit("call:answer", { targetId: from.id, answer });
-    showGameOverlayMessage("✅ Call accepted.", 2000, "success");
+    socket.emit("call:answer", {
+      targetId: from.id,
+      answer: peerConnection.localDescription,
+    });
 
     incomingCallData = null;
   } catch (err) {
