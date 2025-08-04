@@ -151,22 +151,40 @@ let iceCandidateQueue = [];
 let isNegotiating = false;
 
 // --- WebRTC Configuration ---
+// **IMPROVEMENT**: Added more STUN servers and a free TURN server from Twilio
+// for better reliability across different networks. For a production app,
+// it's highly recommended to use a paid, dedicated TURN server service.
+let iceServers = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun.services.mozilla.com" },
+  { urls: "stun:stun.stunprotocol.org:3478" },
+];
+
+// Asynchronously fetch the latest TURN server credentials from Twilio
+// This is a common practice for using their free service tier.
+async function fetchIceServers() {
+  try {
+    const response = await fetch(
+      "https://anonymous-chat-backend-1.onrender.com/ice"
+    );
+    if (!response.ok) {
+      throw new Error("Failed to fetch ICE servers");
+    }
+    const twilioIceServers = await response.json();
+    peerConnectionConfig.iceServers = [...iceServers, ...twilioIceServers];
+  } catch (error) {
+    console.error(
+      "Could not fetch ICE servers from Twilio, using STUN only.",
+      error
+    );
+    peerConnectionConfig.iceServers = iceServers;
+  }
+}
+
 const peerConnectionConfig = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun.services.mozilla.com" },
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-  ],
+  iceServers: [], // Will be populated by fetchIceServers
   iceCandidatePoolSize: 10,
 };
 
@@ -181,8 +199,9 @@ const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1433086966358-54859d0ed716?q=80&w=1374&auto=format&fit=crop",
 ];
 
-// --- Initialization & Event Listeners (Unchanged) ---
-window.addEventListener("load", () => {
+// --- Initialization & Event Listeners ---
+window.addEventListener("load", async () => {
+  await fetchIceServers(); // Fetch ICE servers on load
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
   const savedBackground = localStorage.getItem("chatBackground");
@@ -1279,7 +1298,7 @@ function renderHangmanState(state) {
       hangmanGameInfo.textContent = 'Press "Start Game" when ready.';
     } else {
       const creator = latestUsers.find((u) => u.id === state.creatorId);
-      hangmanGameInfo.textContent = `Waiting for ${
+      gameInfo.textContent = `Waiting for ${
         creator ? creator.name : "the host"
       } to start the game.`;
     }
@@ -1307,13 +1326,21 @@ function updateCallButtonVisibility() {
 }
 
 async function createPeerConnection() {
-  console.log("⚡ Creating new RTCPeerConnection");
+  console.log(
+    "⚡ Creating new RTCPeerConnection with config:",
+    peerConnectionConfig
+  );
   peerConnection = new RTCPeerConnection(peerConnectionConfig);
   iceCandidateQueue = [];
   isNegotiating = false;
 
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && callPartnerId) {
+      console.log(
+        "📤 Sending ICE candidate:",
+        event.candidate.type,
+        event.candidate.address
+      );
       socket.emit("call:ice_candidate", {
         targetId: callPartnerId,
         candidate: event.candidate,
@@ -1338,7 +1365,6 @@ async function createPeerConnection() {
         );
         break;
       case "failed":
-        // *** CRITICAL FIX: DO NOT ATTEMPT TO RESTART ICE. CLEANLY END THE CALL. ***
         handleConnectionFailure();
         break;
       case "closed":
@@ -1349,6 +1375,7 @@ async function createPeerConnection() {
 
   peerConnection.onsignalingstatechange = () => {
     isNegotiating = peerConnection.signalingState !== "stable";
+    console.log(`🚦 Signaling State Changed: ${peerConnection.signalingState}`);
   };
 
   peerConnection.ontrack = (event) => {
@@ -1392,11 +1419,6 @@ async function createPeerConnection() {
   }
 }
 
-/**
- * **FIX:** This function is called when the connection state becomes 'failed'.
- * Instead of trying a buggy ICE restart, it now cleanly ends the call,
- * preventing the "m-line" error and allowing users to try again reliably.
- */
 function handleConnectionFailure() {
   displayError("Call connection failed.");
   showGameOverlayMessage("Call failed. Please try again.", 3000, "system");
@@ -1422,8 +1444,6 @@ async function startCall() {
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
 
-    // Create PC, add track. This will automatically trigger `onnegotiationneeded`
-    // to create and send the initial offer, which is the correct pattern.
     await createPeerConnection();
   } catch (err) {
     console.error("Error starting call:", err);
@@ -1520,10 +1540,13 @@ socket.on("call:ice_candidate_received", async ({ candidate }) => {
     if (peerConnection.remoteDescription) {
       await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } else {
+      console.log(
+        "📥 Queuing ICE candidate because remote description is not set yet."
+      );
       iceCandidateQueue.push(candidate);
     }
   } catch (e) {
-    /* Errors here can be noisy and are often non-fatal, so logging is omitted. */
+    console.warn("Harmless error adding ICE candidate:", e);
   }
 });
 
