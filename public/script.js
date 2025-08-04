@@ -1,4 +1,5 @@
 // CRITICAL: This URL MUST EXACTLY MATCH your Render backend URL.
+// Ensure your backend is served over HTTPS.
 const socket = io("https://anonymous-chat-backend-1.onrender.com");
 
 // --- DOM Element Selectors ---
@@ -144,17 +145,22 @@ let hangmanCountdownInterval = null;
 let peerConnection;
 let localStream;
 let isCallActive = false;
-let callPartnerId = null; // Stores the ID of the person we are in a call with
+let callPartnerId = null; // ✅ FIX: The single source of truth for the call partner's ID
 let incomingCallData = null;
-let iceCandidateQueue = []; // ** NEW: Queue for ICE candidates
+let iceCandidateQueue = [];
 
-// --- Using a more robust list of public STUN/TURN servers ---
+// --- WebRTC Configuration ---
+// For a production app, you should use a paid TURN server service like Twilio or Xirsys
+// for better reliability across different network types.
+// Public STUN servers are good for development and simple network setups.
 const peerConnectionConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun.services.mozilla.com" },
+    // Adding a public TURN server for better connectivity.
+    // NOTE: Public TURN servers might be slow or unreliable.
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
@@ -164,11 +170,6 @@ const peerConnectionConfig = {
       urls: "turn:openrelay.metered.ca:443",
       username: "openrelayproject",
       credential: "openrelayproject",
-    },
-    {
-      urls: "turn:numb.viagenie.ca",
-      username: "webrtc@live.com",
-      credential: "muazkh",
     },
   ],
 };
@@ -583,6 +584,11 @@ function updateUserList(container) {
 }
 
 function switchRoom(roomId, title, roomType) {
+  // ✅ FIX: Block room switching while in a call
+  if (isCallActive) {
+    displayError("Please end the current call before switching rooms.");
+    return;
+  }
   if (currentRoom.id === roomId) return;
 
   if (currentRoom.id && currentRoom.id.startsWith("game-")) {
@@ -1410,21 +1416,16 @@ async function createPeerConnection() {
     peerConnectionConfig
   );
   peerConnection = new RTCPeerConnection(peerConnectionConfig);
-  iceCandidateQueue = []; // ** MODIFIED: Reset queue for each new connection
+  iceCandidateQueue = []; // Reset queue for each new connection
 
-  // --- MODIFIED: More robust connection state handling ---
   peerConnection.onconnectionstatechange = (event) => {
     console.log(
       `WebRTC Connection State Changed: %c${peerConnection.connectionState}`,
       "font-weight: bold;"
     );
     if (peerConnection.connectionState === "failed") {
-      displayError("Call connection failed. Trying to reconnect...");
-      // Attempt to restart the ICE process, which can recover the connection.
-      if (typeof peerConnection.restartIce === "function") {
-        console.log("Attempting ICE restart...");
-        peerConnection.restartIce();
-      }
+      displayError("Call connection failed. Please try again.");
+      endCall(false); // End the call cleanly on failure
     }
   };
 
@@ -1441,6 +1442,7 @@ async function createPeerConnection() {
     console.log("🎶 Received remote audio track.");
     if (event.streams && event.streams[0]) {
       remoteAudio.srcObject = event.streams[0];
+      // ✅ FIX: Catch errors from play() due to browser autoplay policies
       remoteAudio.play().catch((error) => {
         console.error("Remote audio play failed:", error);
         displayError("Could not play partner's audio. Click page to enable.");
@@ -1458,11 +1460,13 @@ async function createPeerConnection() {
 async function startCall() {
   if (isCallActive || currentRoom.type !== "private") return;
 
-  const otherUserId = currentRoom.id.replace(myId, "").replace("-", "");
-  if (!otherUserId || !latestUsers.some((u) => u.id === otherUserId)) {
-    displayError("The other user is not online.");
+  // ✅ FIX: Get partner ID from the connectedRooms object for reliability
+  const partnerInfo = connectedRooms[currentRoom.id]?.withUser;
+  if (!partnerInfo) {
+    displayError("Could not find a user in this private chat to call.");
     return;
   }
+  const otherUserId = partnerInfo.id;
 
   try {
     console.log("🎤 Requesting microphone permissions...");
@@ -1491,7 +1495,7 @@ async function startCall() {
   } catch (err) {
     console.error("Error starting call:", err);
     displayError("Could not start call. Check microphone permissions.");
-    endCall(false);
+    endCall(false); // Don't notify peer if we failed to even start
   }
 }
 
@@ -1500,7 +1504,7 @@ function endCall(notifyPeer = true) {
   if (!isCallActive && !incomingCallData) return;
 
   if (notifyPeer && callPartnerId) {
-    socket.emit("call:end", { targetId: callPartnerId });
+    socket.emit("call:end"); // Server knows who the partner is
   }
 
   if (peerConnection) {
@@ -1545,7 +1549,7 @@ socket.on("call:answer_received", async ({ answer }) => {
     );
     console.log("Answer: Remote description set.");
 
-    // ** MODIFIED: Process any queued ICE candidates now **
+    // ✅ FIX: Process any queued ICE candidates now that the connection is established
     console.log(
       `🧊 Processing ${iceCandidateQueue.length} queued ICE candidates.`
     );
@@ -1560,7 +1564,7 @@ socket.on("call:answer_received", async ({ answer }) => {
   }
 });
 
-// ** MODIFIED: This now queues candidates if the connection isn't ready **
+// ✅ FIX: Queue ICE candidates if the remote description isn't set yet
 socket.on("call:ice_candidate_received", async ({ candidate }) => {
   if (peerConnection && candidate) {
     try {
@@ -1579,10 +1583,9 @@ socket.on("call:ice_candidate_received", async ({ candidate }) => {
 });
 
 socket.on("call:declined", ({ from, reason }) => {
-  const user = latestUsers.find((u) => u.id === from.id);
-  let message = `❌ ${user ? user.name : "User"} declined the call.`;
+  let message = `❌ ${from.name || "User"} declined the call.`;
   if (reason === "busy") {
-    message = `❌ ${user ? user.name : "User"} is busy on another call.`;
+    message = `❌ ${from.name || "User"} is busy on another call.`;
   }
   showGameOverlayMessage(message, 2000, "system");
   endCall(false);
@@ -1623,17 +1626,6 @@ acceptCallBtn.addEventListener("click", async () => {
 
     console.log("Answer: Setting remote description from offer.");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
-    // ** MODIFIED: Process any queued ICE candidates now **
-    console.log(
-      `🧊 Processing ${iceCandidateQueue.length} queued ICE candidates.`
-    );
-    iceCandidateQueue.forEach((candidate) =>
-      peerConnection
-        .addIceCandidate(new RTCIceCandidate(candidate))
-        .catch((e) => console.error("Error adding queued ICE candidate", e))
-    );
-    iceCandidateQueue = [];
 
     console.log("Answer: Creating answer...");
     const answer = await peerConnection.createAnswer();

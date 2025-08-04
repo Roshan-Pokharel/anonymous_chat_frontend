@@ -437,8 +437,10 @@
     </div>
 
     <!-- Audio elements for WebRTC -->
-    <audio id="localAudio" autoplay muted></audio>
-    <audio id="remoteAudio" autoplay></audio>
+    <!-- `muted` is essential for local audio autoplay -->
+    <audio id="localAudio" autoplay muted playsinline></audio>
+    <!-- `playsinline` helps with autoplay on mobile -->
+    <audio id="remoteAudio" autoplay playsinline></audio>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="script.js"></script>
