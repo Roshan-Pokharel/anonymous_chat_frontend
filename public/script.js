@@ -157,10 +157,7 @@ const peerConnectionConfig = {
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun.services.mozilla.com" },
     {
-      urls: [
-        "turn:relay.metered.ca:80",
-        "turns:relay.metered.ca:443", // Using TLS for better firewall traversal
-      ],
+      urls: ["turn:relay.metered.ca:80", "turns:relay.metered.ca:443"],
       username: "openrelayproject",
       credential: "openrelayproject",
     },
@@ -173,7 +170,6 @@ const peerConnectionConfig = {
   iceCandidatePoolSize: 10,
 };
 
-// ... (predefinedBackgrounds and other initial constants are unchanged)
 const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?q=80&w=1374&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1575&auto=format&fit=crop",
@@ -186,7 +182,6 @@ const predefinedBackgrounds = [
 ];
 
 // --- Initialization ---
-// ... (this section is unchanged)
 window.addEventListener("load", () => {
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
@@ -204,7 +199,6 @@ window.addEventListener("resize", () => {
 });
 
 // --- Event Listeners ---
-// ... (most listeners are unchanged)
 input.addEventListener("input", () => {
   if (!isTyping) {
     isTyping = true;
@@ -247,7 +241,7 @@ form.addEventListener("submit", (e) => {
 });
 
 showUsersBtn.onclick = () => {
-  updateSideBar(); // Refresh the list to ensure it's up-to-date
+  updateSideBar();
   populateBackgroundOptions(backgroundOptionsMobileContainer);
   allUsersModal.style.display = "flex";
   updateGameButtonVisibility(currentGameState);
@@ -262,7 +256,6 @@ scoreboardModal.addEventListener("click", (e) => {
 closeScoreboardBtn.onclick = () => (scoreboardModal.style.display = "none");
 
 // --- Mobile Tab Navigation ---
-// ... (this section is unchanged)
 const mobileTabOrder = ["users", "game", "appearance"];
 function switchMobileTab(tabName) {
   const tabIndex = mobileTabOrder.indexOf(tabName);
@@ -325,7 +318,6 @@ sidebarNav.addEventListener("click", (e) => {
 });
 
 // --- Socket Event Handlers ---
-// ... (most socket handlers are unchanged)
 socket.on("connect", () => {
   myId = socket.id;
   console.log("✅ Connected to server with ID:", myId);
@@ -386,7 +378,6 @@ socket.on("chat message", (msg) => {
 });
 
 // --- Core Functions ---
-// ... (these functions are unchanged)
 function checkForPersistedLogin() {
   try {
     const storedUser = JSON.parse(localStorage.getItem("userInfo"));
@@ -539,7 +530,7 @@ function updateUserList(container) {
     if (user.id === myId) return;
 
     const privateRoomId = [myId, user.id].sort().join("-");
-    if (connectedRooms[privateRoomId]) return; // Don't show users we're already connected to
+    if (connectedRooms[privateRoomId]) return;
 
     const div = document.createElement("div");
     div.className = "user";
@@ -588,7 +579,6 @@ function updateUserList(container) {
 }
 
 function switchRoom(roomId, title, roomType) {
-  // Block room switching while in a call
   if (isCallActive) {
     displayError("Please end the current call before switching rooms.");
     return;
@@ -623,7 +613,6 @@ function switchRoom(roomId, title, roomType) {
 }
 
 // --- Helper & UI Functions ---
-// ... (these functions are unchanged)
 function generateColorFromId(id) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
@@ -696,7 +685,6 @@ function populateBackgroundOptions(container) {
 }
 
 // --- PRIVATE CHAT REQUESTS ---
-// ... (this section is unchanged)
 function initiatePrivateChat(targetUser) {
   if (recentlyDeclinedBy[targetUser.id]) {
     displayError(
@@ -758,7 +746,7 @@ socket.on("private:request_accepted", ({ room, withUser }) => {
 
 socket.on("private:request_declined", ({ byUser, reason }) => {
   delete pendingPrivateRequests[byUser.id];
-  recentlyDeclinedBy[byUser.id] = true; // Add user to the declined list
+  recentlyDeclinedBy[byUser.id] = true;
 
   let message = `${byUser.name} declined your chat request.`;
   if (reason === "busy") {
@@ -772,7 +760,6 @@ socket.on("private:request_declined", ({ byUser, reason }) => {
 
 socket.on("private:request_error", (errorMsg) => {
   displayError(errorMsg);
-  // On an error from the server (like the other user has blocked you), update the UI
   const targetId = Object.keys(pendingPrivateRequests)[0];
   if (targetId) {
     recentlyDeclinedBy[targetId] = true;
@@ -801,7 +788,6 @@ declineRequestBtn.addEventListener("click", () => {
 });
 
 // --- PRIVATE CHAT DISCONNECT ---
-// ... (this section is unchanged)
 function showDisconnectConfirm(roomId) {
   disconnectTarget = roomId;
   disconnectModal.style.display = "flex";
@@ -884,7 +870,6 @@ function showGameOverlayMessage(text, duration = 2500, type = "info") {
   if (!gameOverlayMessage) return;
   gameOverlayMessage.textContent = text;
 
-  // Reset classes to default
   gameOverlayMessage.className = "game-overlay-message";
 
   if (type === "system") {
@@ -1395,10 +1380,9 @@ function renderHangmanState(state) {
 }
 
 // ===================================================================================
-// --- 📞 AUDIO CALL (WEBRTC) - REVISED FOR STATEFUL SIGNALING ---
+// --- 📞 AUDIO CALL (WEBRTC) - REVISED FOR STABILITY ---
 // ===================================================================================
 
-// ... (updateCallButtonVisibility, createPeerConnection, handleConnectionFailure are largely unchanged)
 function updateCallButtonVisibility() {
   const isPrivateChat = currentRoom.type === "private";
   startCallBtn.style.display =
@@ -1418,17 +1402,13 @@ function updateCallButtonVisibility() {
 }
 
 async function createPeerConnection() {
-  console.log(
-    "⚡ Creating new RTCPeerConnection with config:",
-    peerConnectionConfig
-  );
+  console.log("⚡ Creating new RTCPeerConnection");
   peerConnection = new RTCPeerConnection(peerConnectionConfig);
   iceCandidateQueue = [];
   isNegotiating = false;
 
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && callPartnerId) {
-      // console.log("🧊 Sending ICE candidate to peer"); // This can be noisy
       socket.emit("call:ice_candidate", {
         targetId: callPartnerId,
         candidate: event.candidate,
@@ -1447,24 +1427,22 @@ async function createPeerConnection() {
         break;
       case "disconnected":
         showGameOverlayMessage(
-          "⚠️ Call disconnected. Attempting to reconnect...",
+          "⚠️ Call disconnected. Reconnecting...",
           3000,
           "system"
         );
         break;
       case "failed":
-        displayError("Call connection failed. Please try again.");
+        // This is the critical change: Instead of trying to restart ICE, we end the call cleanly.
         handleConnectionFailure();
         break;
       case "closed":
-        console.log("Call connection closed.");
         endCall(false);
         break;
     }
   };
 
   peerConnection.onsignalingstatechange = () => {
-    // console.log(`WebRTC Signaling State Changed: ${peerConnection.signalingState}`);
     isNegotiating = peerConnection.signalingState !== "stable";
   };
 
@@ -1472,14 +1450,12 @@ async function createPeerConnection() {
     console.log("🎶 Received remote audio track.");
     if (event.streams && event.streams[0]) {
       remoteAudio.srcObject = event.streams[0];
-      remoteAudio.play().catch((error) => {
-        console.error("Remote audio play failed:", error);
-        displayError("Could not play partner's audio. Click page to enable.");
-      });
+      remoteAudio
+        .play()
+        .catch((error) => console.error("Remote audio play failed:", error));
     }
   };
 
-  // onnegotiationneeded is still useful for handling renegotiations during an active call
   peerConnection.onnegotiationneeded = async () => {
     if (isNegotiating) {
       console.log("Skipping negotiationneeded due to ongoing negotiation");
@@ -1487,18 +1463,18 @@ async function createPeerConnection() {
     }
     isNegotiating = true;
     try {
-      // Only create an offer if the connection is already established (i.e., this is a renegotiation)
-      if (peerConnection.signalingState === "stable" && isCallActive) {
-        console.log("🤝 Renegotiation needed, creating offer...");
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        socket.emit("call:offer", {
-          targetId: callPartnerId,
-          offer: peerConnection.localDescription,
-        });
-      }
+      console.log("🤝 Negotiation needed, creating offer...");
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit("call:offer", {
+        targetId: callPartnerId,
+        offer: peerConnection.localDescription,
+      });
     } catch (err) {
       console.error("Error during negotiationneeded event:", err);
+      // If negotiation fails, end the call attempt cleanly
+      displayError("An error occurred during call negotiation.");
+      endCall(true);
     } finally {
       isNegotiating = false;
     }
@@ -1511,25 +1487,20 @@ async function createPeerConnection() {
   }
 }
 
+// REVISED: Cleanly end the call on failure instead of trying to recover.
 function handleConnectionFailure() {
-  if (peerConnection.connectionState === "failed") {
-    console.log("Attempting to recover connection with ICE restart...");
-    showGameOverlayMessage(
-      "Connection unstable, trying to reconnect...",
-      3000,
-      "system"
-    );
-    peerConnection.restartIce();
-  }
+  displayError("Call connection failed.");
+  showGameOverlayMessage("Call failed. Please try again.", 3000, "system");
+  endCall(true); // Notify the other peer that the call has ended.
 }
 
+// REVISED: Rely on `onnegotiationneeded` to send the offer.
 async function startCall() {
   if (isCallActive || currentRoom.type !== "private") return;
 
   const partnerInfo = connectedRooms[currentRoom.id]?.withUser;
   if (!partnerInfo) {
-    displayError("Could not find a user in this private chat to call.");
-    return;
+    return displayError("Could not find a user in this private chat to call.");
   }
 
   callPartnerId = partnerInfo.id;
@@ -1543,26 +1514,19 @@ async function startCall() {
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
 
+    // This will create the PC, add the track, and automatically
+    // trigger `onnegotiationneeded` to create and send the offer.
     await createPeerConnection();
-
-    // Now, create the initial offer and send it
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-
-    socket.emit("call:offer", {
-      targetId: callPartnerId,
-      offer: peerConnection.localDescription,
-    });
   } catch (err) {
     console.error("Error starting call:", err);
     displayError("Could not start call. Check microphone permissions.");
-    endCall(true); // End the call attempt if permissions fail
+    endCall(false);
   }
 }
 
+// REVISED: More thorough cleanup.
 function endCall(notifyPeer = true) {
   if (!isCallActive && !incomingCallData && !peerConnection) return;
-
   console.log(`☎️ Ending call. Notify peer: ${notifyPeer}`);
 
   if (notifyPeer && callPartnerId) {
@@ -1574,9 +1538,13 @@ function endCall(notifyPeer = true) {
     peerConnection.onconnectionstatechange = null;
     peerConnection.ontrack = null;
     peerConnection.onnegotiationneeded = null;
-    peerConnection.close();
-    peerConnection = null;
+    // Close the connection
+    if (peerConnection.signalingState !== "closed") {
+      peerConnection.close();
+    }
+    peerConnection = null; // Important: Nullify the object for garbage collection
   }
+
   if (localStream) {
     localStream.getTracks().forEach((track) => track.stop());
     localStream = null;
@@ -1591,54 +1559,38 @@ function endCall(notifyPeer = true) {
   isNegotiating = false;
   iceCandidateQueue = [];
 
-  incomingCallModal.style.display = "none";
-  showGameOverlayMessage("Call ended.", 2000, "system");
+  if (incomingCallModal.style.display === "flex") {
+    incomingCallModal.style.display = "none";
+  }
+
+  if (document.body.contains(endCallBtn)) {
+    // Check if element is in DOM
+    showGameOverlayMessage("Call ended.", 2000, "system");
+  }
+
   updateCallButtonVisibility();
 }
 
 // --- REVISED AUDIO CALL SOCKET HANDLERS ---
 socket.on("call:incoming", async ({ from, offer }) => {
-  if (isCallActive || incomingCallData) {
-    // This case should be largely prevented by the server's new state machine, but it's good client-side protection.
-    console.warn(
-      "Received incoming call while already in a call/ringing. Declining."
-    );
+  // The stateful server prevents most of these edge cases, but client-side checks are still good practice.
+  if (isCallActive || incomingCallData || peerConnection) {
+    console.warn("Received incoming call while busy. Notifying server.");
     socket.emit("call:decline", { targetId: from.id, reason: "busy" });
     return;
   }
 
-  // Handle renegotiation offers during an active call
-  if (peerConnection && peerConnection.signalingState !== "stable") {
-    // This is the polite peer's role in glare handling for renegotiations
-    console.log("Ignoring renegotiation offer while not in stable state.");
-    return;
-  }
-  if (peerConnection) {
-    console.log("Handling renegotiation offer.");
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    socket.emit("call:answer", {
-      targetId: from.id,
-      answer: peerConnection.localDescription,
-    });
-    return;
-  }
-
-  // This is a new call
   console.log(`📞 Incoming call from ${from.name}`);
   incomingCallData = { from, offer };
   incomingCallFrom.textContent = `${from.name} is calling`;
   incomingCallModal.style.display = "flex";
 });
 
-// NEW: Listen for 'busy' signal from server
 socket.on("call:busy", ({ from }) => {
   showGameOverlayMessage(`❌ ${from.name} is currently busy.`, 3000, "system");
-  endCall(false); // Clean up the failed call attempt
+  endCall(false);
 });
 
-// NEW: Listen for generic call errors from server
 socket.on("call:error", (message) => {
   displayError(message);
   endCall(false);
@@ -1671,7 +1623,8 @@ socket.on("call:ice_candidate_received", async ({ candidate }) => {
       iceCandidateQueue.push(candidate);
     }
   } catch (e) {
-    // console.error("Error adding received ICE candidate:", e); // Can be noisy
+    // This can be noisy with non-critical errors, so logging is commented out.
+    // console.error("Error adding received ICE candidate:", e);
   }
 });
 
@@ -1717,7 +1670,7 @@ acceptCallBtn.addEventListener("click", async () => {
 
     await createPeerConnection();
 
-    console.log("Offer: Setting remote description from incoming offer.");
+    console.log("Offer: Setting remote description.");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
     console.log("Answer: Creating answer...");
