@@ -1,3 +1,4 @@
+// CRITICAL: This URL MUST EXACTLY MATCH your Render backend URL.
 const socket = io("https://anonymous-chat-backend-1.onrender.com");
 
 // --- DOM Element Selectors ---
@@ -146,15 +147,15 @@ let isCallActive = false;
 let callPartnerId = null; // Stores the ID of the person we are in a call with
 let incomingCallData = null;
 
-// --- FIX: Added a TURN server to the WebRTC configuration ---
-// The audio call failed with distant friends because of network restrictions (NAT).
-// STUN servers help peers find each other, but can't get through all types of firewalls.
-// A TURN server acts as a relay when a direct connection fails.
-// This free TURN server is for demonstration; for a real application, you'd host your own.
+// --- FIX: Using a more robust list of public STUN/TURN servers ---
+// Free servers can be unreliable. Adding more options increases the chance of a successful
+// connection. For a production app, a paid service (e.g., Twilio) is recommended.
 const peerConnectionConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun.services.mozilla.com" },
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
@@ -164,6 +165,11 @@ const peerConnectionConfig = {
       urls: "turn:openrelay.metered.ca:443",
       username: "openrelayproject",
       credential: "openrelayproject",
+    },
+    {
+      urls: "turn:numb.viagenie.ca",
+      username: "webrtc@live.com",
+      credential: "muazkh",
     },
   ],
 };
@@ -318,6 +324,7 @@ sidebarNav.addEventListener("click", (e) => {
 // --- Socket Event Handlers ---
 socket.on("connect", () => {
   myId = socket.id;
+  console.log("✅ Connected to server with ID:", myId);
   checkForPersistedLogin();
 });
 
@@ -1399,10 +1406,26 @@ function updateCallButtonVisibility() {
 }
 
 async function createPeerConnection() {
+  console.log(
+    "⚡ Creating new RTCPeerConnection with config:",
+    peerConnectionConfig
+  );
   peerConnection = new RTCPeerConnection(peerConnectionConfig);
+
+  // --- DEBUGGING: Log connection state changes ---
+  peerConnection.onconnectionstatechange = (event) => {
+    console.log(
+      `WebRTC Connection State Changed: %c${peerConnection.connectionState}`,
+      "font-weight: bold;"
+    );
+    if (peerConnection.connectionState === "failed") {
+      displayError("Call connection failed. Please try again.");
+    }
+  };
 
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && callPartnerId) {
+      // console.log("🧊 Sending ICE candidate to peer:", event.candidate); // This is very noisy, enable if needed
       socket.emit("call:ice_candidate", {
         targetId: callPartnerId,
         candidate: event.candidate,
@@ -1411,6 +1434,7 @@ async function createPeerConnection() {
   };
 
   peerConnection.ontrack = (event) => {
+    console.log("🎶 Received remote audio track.");
     if (event.streams && event.streams[0]) {
       remoteAudio.srcObject = event.streams[0];
     }
@@ -1433,8 +1457,10 @@ async function startCall() {
   }
 
   try {
+    console.log("🎤 Requesting microphone permissions...");
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     localAudio.srcObject = localStream;
+    console.log("🎤 Permissions granted.");
 
     callPartnerId = otherUserId;
     isCallActive = true;
@@ -1442,9 +1468,15 @@ async function startCall() {
 
     await createPeerConnection();
 
+    console.log("Offer: Creating offer...");
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
+    console.log("Offer: Local description set.");
 
+    console.log(
+      "Offer: Emitting 'call:offer' to server for target:",
+      callPartnerId
+    );
     socket.emit("call:offer", { targetId: callPartnerId, offer });
 
     showGameOverlayMessage("📞 Calling...", 2000, "system");
@@ -1456,6 +1488,7 @@ async function startCall() {
 }
 
 function endCall(notifyPeer = true) {
+  console.log(`☎️ Ending call. Notify peer: ${notifyPeer}`);
   if (!isCallActive && !incomingCallData) return;
 
   if (notifyPeer && callPartnerId) {
@@ -1484,7 +1517,9 @@ function endCall(notifyPeer = true) {
 
 // --- AUDIO CALL (WEBRTC) SOCKET HANDLERS ---
 socket.on("call:incoming", async ({ from, offer }) => {
+  console.log(`📞 Incoming call from ${from.name} (${from.id})`);
   if (isCallActive || incomingCallData) {
+    console.log("   -> User is busy. Declining automatically.");
     socket.emit("call:decline", { targetId: from.id, reason: "busy" });
     return;
   }
@@ -1495,10 +1530,12 @@ socket.on("call:incoming", async ({ from, offer }) => {
 });
 
 socket.on("call:answer_received", async ({ answer }) => {
+  console.log("Answer: Received from peer.");
   if (peerConnection) {
     await peerConnection.setRemoteDescription(
       new RTCSessionDescription(answer)
     );
+    console.log("Answer: Remote description set.");
     showGameOverlayMessage("✅ Call connected.", 2000, "success");
   }
 });
@@ -1506,6 +1543,7 @@ socket.on("call:answer_received", async ({ answer }) => {
 socket.on("call:ice_candidate_received", async ({ candidate }) => {
   if (peerConnection && candidate) {
     try {
+      // console.log("🧊 Received ICE candidate from peer, adding it."); // Very noisy
       await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (e) {
       console.error("Error adding received ice candidate", e);
@@ -1536,6 +1574,7 @@ acceptCallBtn.addEventListener("click", async () => {
   if (!incomingCallData) return;
 
   const { from, offer } = incomingCallData;
+  console.log(`✅ Accepting call from ${from.name}`);
   incomingCallModal.style.display = "none";
 
   const privateRoomId = [myId, from.id].sort().join("-");
@@ -1544,19 +1583,29 @@ acceptCallBtn.addEventListener("click", async () => {
   }
 
   try {
+    console.log("🎤 Requesting microphone permissions for accepting call...");
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     localAudio.srcObject = localStream;
+    console.log("🎤 Permissions granted.");
 
     callPartnerId = from.id;
     isCallActive = true;
     updateCallButtonVisibility();
 
     await createPeerConnection();
+
+    console.log("Answer: Setting remote description from offer.");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
+    console.log("Answer: Creating answer...");
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
+    console.log("Answer: Local description set.");
 
+    console.log(
+      "Answer: Emitting 'call:answer' to server for target:",
+      from.id
+    );
     socket.emit("call:answer", { targetId: from.id, answer });
     showGameOverlayMessage("✅ Call accepted.", 2000, "success");
 
@@ -1570,6 +1619,7 @@ acceptCallBtn.addEventListener("click", async () => {
 
 declineCallBtn.addEventListener("click", () => {
   if (incomingCallData) {
+    console.log(`❌ Declining call from ${incomingCallData.from.name}`);
     socket.emit("call:decline", {
       targetId: incomingCallData.from.id,
       reason: "declined",
