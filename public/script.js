@@ -1596,6 +1596,37 @@ function endCall(notifyPeer = true) {
 // --- AUDIO CALL (WEBRTC) SOCKET HANDLERS ---
 socket.on("call:incoming", async ({ from, offer }) => {
   console.log(`📞 Incoming call from ${from.name} (${from.id})`);
+
+  // --- REVISED LOGIC FOR RENEGOTIATION & GLARE HANDLING ---
+  const isRenegotiation = peerConnection && callPartnerId === from.id;
+
+  if (isRenegotiation) {
+    console.log("🤝 Handling renegotiation offer...");
+    try {
+      // This is "glare" handling. If we are not 'stable', it means we are also trying to send an offer.
+      // We should ignore the incoming offer if we are not stable, as our own offer is in flight.
+      if (peerConnection.signalingState !== "stable") {
+        console.warn(
+          "Glare detected: Ignoring incoming offer while not in stable state."
+        );
+        return;
+      }
+      await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(offer)
+      );
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit("call:answer", {
+        targetId: from.id,
+        answer: peerConnection.localDescription,
+      });
+    } catch (err) {
+      console.error("Error during renegotiation:", err);
+    }
+    return; // End execution here, do not show modal.
+  }
+
+  // --- ORIGINAL LOGIC FOR A NEW CALL ---
   if (isCallActive || incomingCallData || peerConnection) {
     console.log("   -> User is busy. Declining automatically.");
     socket.emit("call:decline", { targetId: from.id, reason: "busy" });
