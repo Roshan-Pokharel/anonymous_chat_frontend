@@ -124,10 +124,10 @@ let typingTimer;
 const TYPING_TIMER_LENGTH = 1500;
 let joiningRoomId = null;
 const LOGIN_EXPIRATION_MS = 5 * 60 * 1000;
-let pendingPrivateRequests = {}; // Tracks outgoing requests { targetId: true }
-let incomingPrivateRequest = null; // Stores data of incoming request
-let recentlyDeclinedBy = {}; // Tracks users who have declined a request from me
-let connectedRooms = {}; // Stores info about active private chats { roomId: { withUser: {id, name} } }
+let pendingPrivateRequests = {};
+let incomingPrivateRequest = null;
+let recentlyDeclinedBy = {};
+let connectedRooms = {};
 let disconnectTarget = null;
 
 // Canvas/Drawing State
@@ -150,7 +150,7 @@ let incomingCallData = null;
 let iceCandidateQueue = [];
 let isNegotiating = false;
 
-// --- WebRTC Configuration (REFINED) ---
+// --- WebRTC Configuration ---
 const peerConnectionConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -181,7 +181,7 @@ const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1433086966358-54859d0ed716?q=80&w=1374&auto=format&fit=crop",
 ];
 
-// --- Initialization ---
+// --- Initialization & Event Listeners (Unchanged) ---
 window.addEventListener("load", () => {
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
@@ -197,8 +197,6 @@ window.addEventListener("resize", () => {
     setupCanvas();
   }
 });
-
-// --- Event Listeners ---
 input.addEventListener("input", () => {
   if (!isTyping) {
     isTyping = true;
@@ -210,14 +208,12 @@ input.addEventListener("input", () => {
     socket.emit("stop typing", { room: currentRoom.id });
   }, TYPING_TIMER_LENGTH);
 });
-
 themeToggleBtn.addEventListener("click", () => {
   const isDarkMode = document.body.classList.contains("dark-mode");
   const newTheme = isDarkMode ? "light" : "dark";
   applyTheme(newTheme);
   localStorage.setItem("chatTheme", newTheme);
 });
-
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   const text = input.value.trim();
@@ -239,14 +235,12 @@ form.addEventListener("submit", (e) => {
   input.value = "";
   setTimeout(() => input.focus(), 10);
 });
-
 showUsersBtn.onclick = () => {
   updateSideBar();
   populateBackgroundOptions(backgroundOptionsMobileContainer);
   allUsersModal.style.display = "flex";
   updateGameButtonVisibility(currentGameState);
 };
-
 allUsersModal.addEventListener("click", (e) => {
   if (e.target === allUsersModal) allUsersModal.style.display = "none";
 });
@@ -254,8 +248,6 @@ scoreboardModal.addEventListener("click", (e) => {
   if (e.target === scoreboardModal) scoreboardModal.style.display = "none";
 });
 closeScoreboardBtn.onclick = () => (scoreboardModal.style.display = "none");
-
-// --- Mobile Tab Navigation ---
 const mobileTabOrder = ["users", "game", "appearance"];
 function switchMobileTab(tabName) {
   const tabIndex = mobileTabOrder.indexOf(tabName);
@@ -304,7 +296,6 @@ function setupMobileModalSwipe() {
       );
   }
 }
-
 sidebarNav.addEventListener("click", (e) => {
   if (e.target.tagName !== "BUTTON") return;
   const panelId = e.target.dataset.panel;
@@ -317,13 +308,12 @@ sidebarNav.addEventListener("click", (e) => {
   });
 });
 
-// --- Socket Event Handlers ---
+// --- Socket Event Handlers (Unchanged) ---
 socket.on("connect", () => {
   myId = socket.id;
   console.log("✅ Connected to server with ID:", myId);
   checkForPersistedLogin();
 });
-
 socket.on("typing", ({ name, room }) => {
   if (room === currentRoom.id) {
     typingIndicator.textContent = `${name} is typing...`;
@@ -356,7 +346,6 @@ socket.on("message was read", ({ room, messageId }) => {
     }
   }
 });
-
 socket.on("chat message", (msg) => {
   if (msg.room === currentRoom.id) {
     typingIndicator.textContent = "";
@@ -377,7 +366,7 @@ socket.on("chat message", (msg) => {
   }
 });
 
-// --- Core Functions ---
+// --- Core Functions & Private Chat (Unchanged) ---
 function checkForPersistedLogin() {
   try {
     const storedUser = JSON.parse(localStorage.getItem("userInfo"));
@@ -393,7 +382,6 @@ function checkForPersistedLogin() {
     showUserModal();
   }
 }
-
 function showUserModal() {
   userModal.style.display = "flex";
   nicknameInput.focus();
@@ -419,14 +407,12 @@ function showUserModal() {
     switchRoom("public", "🌐 Public Chat", "public");
   };
 }
-
 function addMessage(msg, type = "") {
   const item = document.createElement("div");
   item.classList.add("msg");
   if (msg.messageId) {
     item.setAttribute("data-message-id", msg.messageId);
   }
-
   const isMe = msg.id && msg.id === myId;
   const isSystem =
     type === "system" ||
@@ -436,7 +422,6 @@ function addMessage(msg, type = "") {
     msg.isPrivateChatEvent;
   if (isSystem) item.classList.add("system");
   else item.classList.add(isMe ? "me" : "other");
-
   const readReceiptHTML =
     isMe && currentRoom.type === "private"
       ? `<span class="read-receipt">${
@@ -451,11 +436,9 @@ function addMessage(msg, type = "") {
   const messageContent = isSystem
     ? `<strong>${msg.text}</strong>`
     : `${nameHTML}${msg.text}${readReceiptHTML}`;
-
   item.innerHTML = `<div class="bubble">${messageContent}</div>`;
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
-
   if (!isMe && !isSystem && currentRoom.type === "private") {
     socket.emit("message read", {
       room: currentRoom.id,
@@ -463,33 +446,27 @@ function addMessage(msg, type = "") {
     });
   }
 }
-
 function updateSideBar() {
   updateConnectedChatsList(connectedChatsList);
   updateConnectedChatsList(connectedChatsListMobile);
   updateUserList(userList);
   updateUserList(allUsersList);
 }
-
 function updateConnectedChatsList(container) {
   if (!container) return;
   container.innerHTML = "";
   const rooms = Object.keys(connectedRooms);
-
   if (rooms.length === 0) {
     container.parentElement.style.display = "none";
     return;
   }
-
   container.parentElement.style.display = "block";
-
   rooms.forEach((roomId) => {
     const room = connectedRooms[roomId];
     const user = room.withUser;
     const div = document.createElement("div");
     div.className = "user connected-chat-item";
     div.dataset.userId = user.id;
-
     const avatarColor = generateColorFromId(user.id);
     const initial = user.name.charAt(0).toUpperCase();
     div.innerHTML = `
@@ -498,7 +475,6 @@ function updateConnectedChatsList(container) {
                 <div class="user-name">${user.name}</div>
             </div>
             <button class="disconnect-btn" data-room-id="${roomId}">Connected</button>`;
-
     div.onclick = (e) => {
       if (e.target.classList.contains("disconnect-btn")) {
         showDisconnectConfirm(roomId);
@@ -506,15 +482,12 @@ function updateConnectedChatsList(container) {
         switchRoom(roomId, `🔒 Chat with ${user.name}`, "private");
       }
     };
-
     container.appendChild(div);
   });
 }
-
 function updateUserList(container) {
   if (!container) return;
   container.innerHTML = "";
-
   const publicBtn = document.createElement("div");
   publicBtn.className = "user public-room";
   publicBtn.innerHTML = `🌐 Public Room`;
@@ -525,24 +498,19 @@ function updateUserList(container) {
     }
   };
   container.appendChild(publicBtn);
-
   latestUsers.forEach((user) => {
     if (user.id === myId) return;
-
     const privateRoomId = [myId, user.id].sort().join("-");
     if (connectedRooms[privateRoomId]) return;
-
     const div = document.createElement("div");
     div.className = "user";
     div.dataset.userId = user.id;
-
     if (pendingPrivateRequests[user.id]) {
       div.classList.add("pending");
     }
     if (recentlyDeclinedBy[user.id]) {
       div.classList.add("declined");
     }
-
     div.onclick = () => {
       if (div.classList.contains("declined")) {
         displayError(
@@ -556,7 +524,6 @@ function updateUserList(container) {
       }
       initiatePrivateChat(user);
     };
-
     const avatarColor = generateColorFromId(user.id);
     const initial = user.name.charAt(0).toUpperCase();
     div.innerHTML = `
@@ -573,32 +540,26 @@ function updateUserList(container) {
             </div>
           </div>
           ${unreadPrivate[user.id] ? '<span class="red-dot"></span>' : ""}`;
-
     container.appendChild(div);
   });
 }
-
 function switchRoom(roomId, title, roomType) {
   if (isCallActive) {
     displayError("Please end the current call before switching rooms.");
     return;
   }
   if (currentRoom.id === roomId) return;
-
   if (currentRoom.id && currentRoom.id.startsWith("game-")) {
     socket.emit("game:leave", currentRoom.id);
     endGame();
   }
-
   currentRoom = { id: roomId, type: roomType };
   roomTitle.textContent = title;
   messages.innerHTML = "";
   typingIndicator.textContent = "";
   typingIndicator.style.opacity = "0";
-
   updateCallButtonVisibility();
   updateSideBar();
-
   if (roomType === "doodle" || roomType === "hangman") {
     socket.emit("join room", roomId);
     showGameContainer(roomType);
@@ -611,8 +572,6 @@ function switchRoom(roomId, title, roomType) {
   }
   updateGameButtonVisibility({});
 }
-
-// --- Helper & UI Functions ---
 function generateColorFromId(id) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
@@ -666,7 +625,6 @@ function applyBackground(url) {
     localStorage.removeItem("chatBackground");
   }
 }
-
 function populateBackgroundOptions(container) {
   if (!container) return;
   container.innerHTML = "";
@@ -683,8 +641,6 @@ function populateBackgroundOptions(container) {
     container.appendChild(option);
   });
 }
-
-// --- PRIVATE CHAT REQUESTS ---
 function initiatePrivateChat(targetUser) {
   if (recentlyDeclinedBy[targetUser.id]) {
     displayError(
@@ -705,7 +661,6 @@ function initiatePrivateChat(targetUser) {
     "system"
   );
 }
-
 socket.on("private:request_incoming", ({ fromUser }) => {
   if (
     isCallActive ||
@@ -722,32 +677,25 @@ socket.on("private:request_incoming", ({ fromUser }) => {
   privateRequestFrom.textContent = `${fromUser.name} wants to chat privately.`;
   privateRequestModal.style.display = "flex";
 });
-
 socket.on("private:request_accepted", ({ room, withUser }) => {
   delete pendingPrivateRequests[withUser.id];
   delete recentlyDeclinedBy[withUser.id];
-
   privateRequestModal.style.display = "none";
   incomingPrivateRequest = null;
-
   if (allUsersModal.style.display === "flex") {
     allUsersModal.style.display = "none";
   }
-
   connectedRooms[room.id] = { withUser };
   switchRoom(room.id, `🔒 Chat with ${withUser.name}`, "private");
-
   showGameOverlayMessage(
     `You are now chatting privately with ${withUser.name}.`,
     2000,
     "system"
   );
 });
-
 socket.on("private:request_declined", ({ byUser, reason }) => {
   delete pendingPrivateRequests[byUser.id];
   recentlyDeclinedBy[byUser.id] = true;
-
   let message = `${byUser.name} declined your chat request.`;
   if (reason === "busy") {
     message = `${byUser.name} is busy and cannot chat right now.`;
@@ -757,7 +705,6 @@ socket.on("private:request_declined", ({ byUser, reason }) => {
   showGameOverlayMessage(message, 2000, "system");
   updateSideBar();
 });
-
 socket.on("private:request_error", (errorMsg) => {
   displayError(errorMsg);
   const targetId = Object.keys(pendingPrivateRequests)[0];
@@ -767,7 +714,6 @@ socket.on("private:request_error", (errorMsg) => {
   pendingPrivateRequests = {};
   updateSideBar();
 });
-
 acceptRequestBtn.addEventListener("click", () => {
   if (incomingPrivateRequest) {
     socket.emit("private:accept", { requesterId: incomingPrivateRequest.id });
@@ -775,7 +721,6 @@ acceptRequestBtn.addEventListener("click", () => {
     incomingPrivateRequest = null;
   }
 });
-
 declineRequestBtn.addEventListener("click", () => {
   if (incomingPrivateRequest) {
     socket.emit("private:decline", {
@@ -786,23 +731,18 @@ declineRequestBtn.addEventListener("click", () => {
     incomingPrivateRequest = null;
   }
 });
-
-// --- PRIVATE CHAT DISCONNECT ---
 function showDisconnectConfirm(roomId) {
   disconnectTarget = roomId;
   disconnectModal.style.display = "flex";
 }
-
 cancelDisconnectBtn.addEventListener("click", () => {
   disconnectModal.style.display = "none";
   disconnectTarget = null;
 });
-
 confirmDisconnectBtn.addEventListener("click", () => {
   if (disconnectTarget) {
     socket.emit("private:leave", { room: disconnectTarget });
     delete connectedRooms[disconnectTarget];
-
     if (currentRoom.id === disconnectTarget) {
       switchRoom("public", "🌐 Public Chat", "public");
     }
@@ -811,7 +751,6 @@ confirmDisconnectBtn.addEventListener("click", () => {
   disconnectModal.style.display = "none";
   disconnectTarget = null;
 });
-
 socket.on("private:partner_left", ({ room, partnerName }) => {
   if (connectedRooms[room]) {
     if (currentRoom.id === room) {
@@ -827,8 +766,7 @@ socket.on("private:partner_left", ({ room, partnerName }) => {
   }
 });
 
-// --- GAME LOGIC ---
-// ... (this entire section, including all game functions, is unchanged)
+// --- Game Logic (Unchanged) ---
 const openHowToPlayModal = () => {
   const gameType = currentGameState.gameType || "doodle";
   howToPlayTitle.textContent =
@@ -865,26 +803,21 @@ closeHowToPlayBtn.addEventListener(
 howToPlayModal.addEventListener("click", (e) => {
   if (e.target === howToPlayModal) howToPlayModal.style.display = "none";
 });
-
 function showGameOverlayMessage(text, duration = 2500, type = "info") {
   if (!gameOverlayMessage) return;
   gameOverlayMessage.textContent = text;
-
   gameOverlayMessage.className = "game-overlay-message";
-
   if (type === "system") {
     gameOverlayMessage.classList.add("system-overlay");
   } else if (type === "success") {
     gameOverlayMessage.classList.add("success-overlay");
   }
-
   gameOverlayMessage.classList.add("visible");
   clearTimeout(overlayTimer);
   overlayTimer = setTimeout(() => {
     gameOverlayMessage.classList.remove("visible");
   }, duration);
 }
-
 function updateRoundTimer(endTime) {
   clearInterval(roundCountdownInterval);
   if (!endTime) {
@@ -904,7 +837,6 @@ function updateRoundTimer(endTime) {
   update();
   roundCountdownInterval = setInterval(update, 1000);
 }
-
 function updateHangmanTimer(endTime) {
   clearInterval(hangmanCountdownInterval);
   if (!endTime) {
@@ -924,7 +856,6 @@ function updateHangmanTimer(endTime) {
   update();
   hangmanCountdownInterval = setInterval(update, 1000);
 }
-
 socket.on("game:roomsList", updateGameRoomList);
 socket.on("game:joined", (roomData) => {
   if (passwordPromptModal.style.display === "flex")
@@ -942,19 +873,16 @@ socket.on("game:join_error", (message) => {
     displayError(message);
   }
 });
-
 socket.on("game:state", (state) => {
   currentGameState = state;
   showGameContainer(state.gameType);
   updateGameButtonVisibility(state);
-
   if (state.gameType === "doodle") {
     renderDoodleState(state);
   } else if (state.gameType === "hangman") {
     renderHangmanState(state);
   }
 });
-
 socket.on("game:word_prompt", (word) =>
   showGameOverlayMessage(`Draw: ${word}`, 4000)
 );
@@ -1008,7 +936,6 @@ socket.on("game:clear_canvas", () => {
   currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 });
-
 function handleCreateGameRoom() {
   createGameModal.style.display = "flex";
   roomNameInput.focus();
@@ -1049,37 +976,31 @@ cancelJoinBtn.addEventListener("click", () => {
   joinPasswordInput.value = "";
   passwordError.style.display = "none";
 });
-
 function handleStartGame() {
   if (currentRoom.id.startsWith("game-"))
     socket.emit("game:start", currentRoom.id);
 }
 startGameBtn.addEventListener("click", handleStartGame);
 startGameBtnMobile.addEventListener("click", handleStartGame);
-
 function handleStopGame() {
   if (currentRoom.id.startsWith("game-"))
     socket.emit("game:stop", currentRoom.id);
 }
 stopGameBtn.addEventListener("click", handleStopGame);
 stopGameBtnMobile.addEventListener("click", handleStopGame);
-
 clearCanvasBtn.addEventListener("click", () => {
   currentDrawingHistory = [];
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
   socket.emit("game:clear_canvas", currentRoom.id);
 });
-
 function updateGameButtonVisibility(state) {
   const isCreator = state && state.creatorId === myId;
   const isGameRoom = currentRoom.id && currentRoom.id.startsWith("game-");
   const isGameActive = state && state.isRoundActive;
-
   startGameBtn.style.display = "none";
   startGameBtnMobile.style.display = "none";
   stopGameBtn.style.display = "none";
   stopGameBtnMobile.style.display = "none";
-
   if (isGameRoom && isCreator) {
     if (isGameActive) {
       stopGameBtn.style.display = "block";
@@ -1113,7 +1034,6 @@ function updateGameButtonVisibility(state) {
   stopGameBtn.classList.add("btn-danger");
   stopGameBtnMobile.classList.add("btn-danger");
 }
-
 function updateGameRoomList(rooms) {
   const renderList = (container) => {
     if (!container) return;
@@ -1152,7 +1072,6 @@ function updateGameRoomList(rooms) {
   renderList(gameRoomListDesktop);
   renderList(gameRoomListMobile);
 }
-
 function showScoreboard(winner, scores) {
   scoreboardTitle.innerHTML = `🏆 ${winner.name} Wins!`;
   finalScores.innerHTML = "<h3>Final Scores:</h3>";
@@ -1176,7 +1095,6 @@ function showScoreboard(winner, scores) {
   finalScores.appendChild(scoreList);
   scoreboardModal.style.display = "flex";
 }
-
 function showGameContainer(gameType) {
   doodleGameContainer.style.display = gameType === "doodle" ? "flex" : "none";
   hangmanGameContainer.style.display = gameType === "hangman" ? "flex" : "none";
@@ -1185,7 +1103,6 @@ function showGameContainer(gameType) {
       ? "Guess a letter..."
       : "Type your message or guess...";
 }
-
 function endGame(hideContainers = true) {
   if (hideContainers) {
     doodleGameContainer.style.display = "none";
@@ -1202,7 +1119,6 @@ function endGame(hideContainers = true) {
   currentDrawingHistory = [];
   input.placeholder = "Type your message or guess...";
 }
-
 function renderDoodleState(state) {
   if (state.isRoundActive) {
     const isDrawer = state.drawer && state.drawer.id === myId;
@@ -1211,12 +1127,10 @@ function renderDoodleState(state) {
       : `${state.drawer.name} is drawing...`;
     drawingTools.style.display = isDrawer ? "flex" : "none";
     gameCanvas.style.cursor = isDrawer ? "crosshair" : "not-allowed";
-
     input.disabled = isDrawer;
     input.placeholder = isDrawer
       ? "You are drawing..."
       : "Type your guess here!";
-
     if (state.roundEndTime) updateRoundTimer(state.roundEndTime);
   } else {
     updateRoundTimer(null);
@@ -1232,7 +1146,6 @@ function renderDoodleState(state) {
     }
   }
 }
-
 function redrawFromHistory() {
   if (!ctx) return;
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
@@ -1251,7 +1164,6 @@ function redrawFromHistory() {
     ctx.closePath();
   });
 }
-
 function setupCanvas() {
   const dpr = window.devicePixelRatio || 1;
   const rect = gameCanvas.getBoundingClientRect();
@@ -1263,7 +1175,6 @@ function setupCanvas() {
   ctx.lineWidth = 5;
   redrawFromHistory();
 }
-
 function drawLine(x0, y0, x1, y1, emit = false) {
   ctx.beginPath();
   ctx.moveTo(x0, y0);
@@ -1281,7 +1192,6 @@ function drawLine(x0, y0, x1, y1, emit = false) {
   currentDrawingHistory.push(drawData);
   socket.emit("game:draw", { room: currentRoom.id, data: drawData });
 }
-
 function handleStart(e) {
   if (
     currentGameState.isRoundActive &&
@@ -1316,7 +1226,6 @@ gameCanvas.addEventListener("mouseout", handleEnd);
 gameCanvas.addEventListener("touchstart", handleStart);
 gameCanvas.addEventListener("touchmove", handleMove);
 gameCanvas.addEventListener("touchend", handleEnd);
-
 function renderHangmanState(state) {
   if (!state || !hangmanGameContainer) return;
   if (state.isRoundActive && state.turnEndTime) {
@@ -1341,13 +1250,11 @@ function renderHangmanState(state) {
   const incorrectCount = incorrectGuesses.length;
   hangmanDrawing.className = `incorrect-${incorrectCount}`;
   const isMyTurn = state.currentPlayerTurn === myId;
-
   if (state.isRoundActive) {
     input.disabled = !isMyTurn;
   } else {
     input.disabled = false;
   }
-
   if (state.isGameOver) {
     hangmanGameInfo.textContent = state.winner
       ? `🎉 ${state.winner.name} won!`
@@ -1380,7 +1287,7 @@ function renderHangmanState(state) {
 }
 
 // ===================================================================================
-// --- 📞 AUDIO CALL (WEBRTC) - REVISED FOR STABILITY ---
+// --- 📞 AUDIO CALL (WEBRTC) - STABILITY FIX ---
 // ===================================================================================
 
 function updateCallButtonVisibility() {
@@ -1388,10 +1295,8 @@ function updateCallButtonVisibility() {
   startCallBtn.style.display =
     isPrivateChat && !isCallActive ? "inline-block" : "none";
   endCallBtn.style.display = isCallActive ? "inline-block" : "none";
-
   const inGame =
     currentRoom.type === "doodle" || currentRoom.type === "hangman";
-
   if (isCallActive && isPrivateChat && !inGame) {
     input.placeholder = "Call in progress...";
     input.disabled = true;
@@ -1427,13 +1332,13 @@ async function createPeerConnection() {
         break;
       case "disconnected":
         showGameOverlayMessage(
-          "⚠️ Call disconnected. Reconnecting...",
+          "⚠️ Call disconnected, attempting to reconnect...",
           3000,
           "system"
         );
         break;
       case "failed":
-        // This is the critical change: Instead of trying to restart ICE, we end the call cleanly.
+        // *** CRITICAL FIX: DO NOT ATTEMPT TO RESTART ICE. CLEANLY END THE CALL. ***
         handleConnectionFailure();
         break;
       case "closed":
@@ -1457,10 +1362,11 @@ async function createPeerConnection() {
   };
 
   peerConnection.onnegotiationneeded = async () => {
-    if (isNegotiating) {
-      console.log("Skipping negotiationneeded due to ongoing negotiation");
-      return;
-    }
+    if (isNegotiating)
+      return console.log(
+        "Skipping negotiationneeded due to ongoing negotiation"
+      );
+
     isNegotiating = true;
     try {
       console.log("🤝 Negotiation needed, creating offer...");
@@ -1472,7 +1378,6 @@ async function createPeerConnection() {
       });
     } catch (err) {
       console.error("Error during negotiationneeded event:", err);
-      // If negotiation fails, end the call attempt cleanly
       displayError("An error occurred during call negotiation.");
       endCall(true);
     } finally {
@@ -1487,20 +1392,23 @@ async function createPeerConnection() {
   }
 }
 
-// REVISED: Cleanly end the call on failure instead of trying to recover.
+/**
+ * **FIX:** This function is called when the connection state becomes 'failed'.
+ * Instead of trying a buggy ICE restart, it now cleanly ends the call,
+ * preventing the "m-line" error and allowing users to try again reliably.
+ */
 function handleConnectionFailure() {
   displayError("Call connection failed.");
   showGameOverlayMessage("Call failed. Please try again.", 3000, "system");
   endCall(true); // Notify the other peer that the call has ended.
 }
 
-// REVISED: Rely on `onnegotiationneeded` to send the offer.
 async function startCall() {
   if (isCallActive || currentRoom.type !== "private") return;
 
   const partnerInfo = connectedRooms[currentRoom.id]?.withUser;
   if (!partnerInfo) {
-    return displayError("Could not find a user in this private chat to call.");
+    return displayError("Could not find a user to call.");
   }
 
   callPartnerId = partnerInfo.id;
@@ -1514,8 +1422,8 @@ async function startCall() {
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
 
-    // This will create the PC, add the track, and automatically
-    // trigger `onnegotiationneeded` to create and send the offer.
+    // Create PC, add track. This will automatically trigger `onnegotiationneeded`
+    // to create and send the initial offer, which is the correct pattern.
     await createPeerConnection();
   } catch (err) {
     console.error("Error starting call:", err);
@@ -1524,7 +1432,6 @@ async function startCall() {
   }
 }
 
-// REVISED: More thorough cleanup.
 function endCall(notifyPeer = true) {
   if (!isCallActive && !incomingCallData && !peerConnection) return;
   console.log(`☎️ Ending call. Notify peer: ${notifyPeer}`);
@@ -1538,11 +1445,10 @@ function endCall(notifyPeer = true) {
     peerConnection.onconnectionstatechange = null;
     peerConnection.ontrack = null;
     peerConnection.onnegotiationneeded = null;
-    // Close the connection
     if (peerConnection.signalingState !== "closed") {
       peerConnection.close();
     }
-    peerConnection = null; // Important: Nullify the object for garbage collection
+    peerConnection = null;
   }
 
   if (localStream) {
@@ -1563,19 +1469,14 @@ function endCall(notifyPeer = true) {
     incomingCallModal.style.display = "none";
   }
 
-  if (document.body.contains(endCallBtn)) {
-    // Check if element is in DOM
-    showGameOverlayMessage("Call ended.", 2000, "system");
-  }
-
+  showGameOverlayMessage("Call ended.", 2000, "system");
   updateCallButtonVisibility();
 }
 
 // --- REVISED AUDIO CALL SOCKET HANDLERS ---
 socket.on("call:incoming", async ({ from, offer }) => {
-  // The stateful server prevents most of these edge cases, but client-side checks are still good practice.
   if (isCallActive || incomingCallData || peerConnection) {
-    console.warn("Received incoming call while busy. Notifying server.");
+    console.warn("Received call while busy. Notifying server.");
     socket.emit("call:decline", { targetId: from.id, reason: "busy" });
     return;
   }
@@ -1599,7 +1500,6 @@ socket.on("call:error", (message) => {
 socket.on("call:answer_received", async ({ answer }) => {
   if (!peerConnection)
     return console.error("Received answer but no peer connection exists.");
-
   console.log("✅ Answer received from peer.");
   try {
     await peerConnection.setRemoteDescription(
@@ -1623,8 +1523,7 @@ socket.on("call:ice_candidate_received", async ({ candidate }) => {
       iceCandidateQueue.push(candidate);
     }
   } catch (e) {
-    // This can be noisy with non-critical errors, so logging is commented out.
-    // console.error("Error adding received ICE candidate:", e);
+    /* Errors here can be noisy and are often non-fatal, so logging is omitted. */
   }
 });
 
@@ -1632,8 +1531,7 @@ socket.on("call:declined", ({ from, reason }) => {
   let message = `❌ ${from.name || "User"} declined the call.`;
   if (reason === "busy")
     message = `❌ ${from.name || "User"} is busy on another call.`;
-
-  showGameOverlayMessage(message, 2000, "system");
+  showGameOverlayMessage(message, 3000, "system");
   endCall(false);
 });
 
@@ -1663,7 +1561,7 @@ acceptCallBtn.addEventListener("click", async () => {
   updateCallButtonVisibility();
 
   try {
-    console.log("🎤 Requesting microphone permissions for accepting call...");
+    console.log("🎤 Requesting microphone permissions...");
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
