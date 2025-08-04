@@ -1,4 +1,3 @@
-// Establish connection to the Socket.IO server
 const socket = io("https://anonymous-chat-backend-1.onrender.com");
 
 // --- DOM Element Selectors ---
@@ -146,10 +145,26 @@ let localStream;
 let isCallActive = false;
 let callPartnerId = null; // Stores the ID of the person we are in a call with
 let incomingCallData = null;
+
+// --- FIX: Added a TURN server to the WebRTC configuration ---
+// The audio call failed with distant friends because of network restrictions (NAT).
+// STUN servers help peers find each other, but can't get through all types of firewalls.
+// A TURN server acts as a relay when a direct connection fails.
+// This free TURN server is for demonstration; for a real application, you'd host your own.
 const peerConnectionConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
 };
 
