@@ -1,3 +1,4 @@
+// CRITICAL: This URL MUST EXACTLY MATCH your Render backend URL.
 const socket = io("https://anonymous-chat-backend-1.onrender.com");
 
 // --- DOM Element Selectors ---
@@ -145,11 +146,7 @@ let localStream;
 let isCallActive = false;
 let callPartnerId = null; // Stores the ID of the person we are in a call with
 let incomingCallData = null;
-let iceCandidateQueue = [];
-// ** NEW: Perfect Negotiation state variables **
-let isPolite = false; // Determines how to handle offer collisions
-let makingOffer = false;
-let ignoreOffer = false;
+let iceCandidateQueue = []; // ** NEW: Queue for ICE candidates
 
 // --- Using a more robust list of public STUN/TURN servers ---
 const peerConnectionConfig = {
@@ -1413,8 +1410,9 @@ async function createPeerConnection() {
     peerConnectionConfig
   );
   peerConnection = new RTCPeerConnection(peerConnectionConfig);
-  iceCandidateQueue = [];
+  iceCandidateQueue = []; // ** MODIFIED: Reset queue for each new connection
 
+  // --- MODIFIED: More robust connection state handling ---
   peerConnection.onconnectionstatechange = (event) => {
     console.log(
       `WebRTC Connection State Changed: %c${peerConnection.connectionState}`,
@@ -1422,27 +1420,11 @@ async function createPeerConnection() {
     );
     if (peerConnection.connectionState === "failed") {
       displayError("Call connection failed. Trying to reconnect...");
+      // Attempt to restart the ICE process, which can recover the connection.
       if (typeof peerConnection.restartIce === "function") {
         console.log("Attempting ICE restart...");
         peerConnection.restartIce();
       }
-    }
-  };
-
-  // ** MODIFIED: Perfect Negotiation handler **
-  peerConnection.onnegotiationneeded = async () => {
-    try {
-      console.log("Negotiation needed, creating offer...");
-      makingOffer = true;
-      await peerConnection.setLocalDescription();
-      socket.emit("call:offer", {
-        targetId: callPartnerId,
-        offer: peerConnection.localDescription,
-      });
-    } catch (err) {
-      console.error("Failed to create offer:", err);
-    } finally {
-      makingOffer = false;
     }
   };
 
@@ -1488,14 +1470,22 @@ async function startCall() {
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
 
-    // ** MODIFIED: Set polite status **
-    isPolite = false; // The initiator is the "impolite" peer
-
     callPartnerId = otherUserId;
     isCallActive = true;
     updateCallButtonVisibility();
 
-    await createPeerConnection(); // This will trigger onnegotiationneeded
+    await createPeerConnection();
+
+    console.log("Offer: Creating offer...");
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    console.log("Offer: Local description set.");
+
+    console.log(
+      "Offer: Emitting 'call:offer' to server for target:",
+      callPartnerId
+    );
+    socket.emit("call:offer", { targetId: callPartnerId, offer });
 
     showGameOverlayMessage("📞 Calling...", 2000, "system");
   } catch (err) {
@@ -1542,17 +1532,6 @@ socket.on("call:incoming", async ({ from, offer }) => {
     return;
   }
 
-  // ** MODIFIED: Perfect negotiation logic for incoming offers **
-  const offerCollision =
-    makingOffer || peerConnection?.signalingState !== "stable";
-  ignoreOffer = !isPolite && offerCollision;
-  if (ignoreOffer) {
-    console.log(
-      "Offer collision detected, ignoring incoming offer as the impolite peer."
-    );
-    return;
-  }
-
   incomingCallData = { from, offer };
   incomingCallFrom.textContent = `${from.name} is calling`;
   incomingCallModal.style.display = "flex";
@@ -1560,15 +1539,16 @@ socket.on("call:incoming", async ({ from, offer }) => {
 
 socket.on("call:answer_received", async ({ answer }) => {
   console.log("Answer: Received from peer.");
-  if (!peerConnection || peerConnection.signalingState !== "have-local-offer")
-    return;
-
-  try {
+  if (peerConnection && peerConnection.signalingState === "have-local-offer") {
     await peerConnection.setRemoteDescription(
       new RTCSessionDescription(answer)
     );
     console.log("Answer: Remote description set.");
 
+    // ** MODIFIED: Process any queued ICE candidates now **
+    console.log(
+      `🧊 Processing ${iceCandidateQueue.length} queued ICE candidates.`
+    );
     iceCandidateQueue.forEach((candidate) =>
       peerConnection
         .addIceCandidate(new RTCIceCandidate(candidate))
@@ -1577,11 +1557,10 @@ socket.on("call:answer_received", async ({ answer }) => {
     iceCandidateQueue = [];
 
     showGameOverlayMessage("✅ Call connected.", 2000, "success");
-  } catch (err) {
-    console.error("Failed to set remote description for answer:", err);
   }
 });
 
+// ** MODIFIED: This now queues candidates if the connection isn't ready **
 socket.on("call:ice_candidate_received", async ({ candidate }) => {
   if (peerConnection && candidate) {
     try {
@@ -1636,9 +1615,6 @@ acceptCallBtn.addEventListener("click", async () => {
     localAudio.srcObject = localStream;
     console.log("🎤 Permissions granted.");
 
-    // ** MODIFIED: Set polite status **
-    isPolite = true; // The receiver is the "polite" peer.
-
     callPartnerId = from.id;
     isCallActive = true;
     updateCallButtonVisibility();
@@ -1648,6 +1624,10 @@ acceptCallBtn.addEventListener("click", async () => {
     console.log("Answer: Setting remote description from offer.");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
+    // ** MODIFIED: Process any queued ICE candidates now **
+    console.log(
+      `🧊 Processing ${iceCandidateQueue.length} queued ICE candidates.`
+    );
     iceCandidateQueue.forEach((candidate) =>
       peerConnection
         .addIceCandidate(new RTCIceCandidate(candidate))
