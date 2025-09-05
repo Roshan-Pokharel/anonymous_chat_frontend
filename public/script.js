@@ -1,8 +1,9 @@
-// CRITICAL: This URL MUST EXACTLY MATCH your Render backend URL.
-// Ensure your backend is served over HTTPS.
+// --- SOCKET.IO CONNECTION ---
+// Ensure your backend is served over HTTPS for WebRTC to work on deployed sites.
+// For local development, 'http://localhost:3000' is fine.
 const socket = io("https://anonymous-chat-backend-1.onrender.com");
 
-// --- DOM Element Selectors ---
+// --- DOM ELEMENT SELECTORS ---
 const form = document.getElementById("form");
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
@@ -59,9 +60,10 @@ const privateRequestFrom = document.getElementById("privateRequestFrom");
 const acceptRequestBtn = document.getElementById("acceptRequestBtn");
 const declineRequestBtn = document.getElementById("declineRequestBtn");
 
-// Call Modal Elements
+// Incoming Call Modal Elements
 const incomingCallModal = document.getElementById("incomingCallModal");
 const incomingCallFrom = document.getElementById("incomingCallFrom");
+const incomingCallAvatar = document.getElementById("incomingCallAvatar");
 const acceptCallBtn = document.getElementById("acceptCallBtn");
 const declineCallBtn = document.getElementById("declineCallBtn");
 
@@ -108,13 +110,20 @@ const hangmanIncorrectLetters = document.getElementById(
 );
 const hangmanGameInfo = document.getElementById("hangmanGameInfo");
 
-// Call & Audio Elements
-const startCallBtn = document.getElementById("startCallBtn");
+// --- VIDEO/AUDIO CALL ELEMENTS (Updated for new UI) ---
+const callContainer = document.getElementById("callContainer");
+const callPartnerName = document.getElementById("callPartnerName");
+const callStatusIndicator = document.getElementById("callStatusIndicator");
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
+const audioCallAvatar = document.getElementById("audioCallAvatar");
+const startAudioCallBtn = document.getElementById("startAudioCallBtn");
+const startVideoCallBtn = document.getElementById("startVideoCallBtn");
 const endCallBtn = document.getElementById("endCallBtn");
-const localAudio = document.getElementById("localAudio");
-const remoteAudio = document.getElementById("remoteAudio");
+const toggleMicBtn = document.getElementById("toggleMicBtn");
+const toggleVideoBtn = document.getElementById("toggleVideoBtn");
 
-// --- Application & Game State ---
+// --- APPLICATION & GAME STATE ---
 let latestUsers = [];
 let unreadPrivate = {};
 let currentRoom = { id: "public", type: "public" };
@@ -141,51 +150,24 @@ let currentDrawingHistory = [];
 let roundCountdownInterval = null;
 let hangmanCountdownInterval = null;
 
-// --- WebRTC & Call State ---
+// --- WEBRTC & CALL STATE ---
 let peerConnection;
 let localStream;
 let isCallActive = false;
 let callPartnerId = null;
 let incomingCallData = null;
-let iceCandidateQueue = [];
-let isNegotiating = false;
+let isMakingOffer = false;
 
-// --- WebRTC Configuration ---
-// **IMPROVEMENT**: Added more STUN servers and a free TURN server from Twilio
-// for better reliability across different networks. For a production app,
-// it's highly recommended to use a paid, dedicated TURN server service.
-let iceServers = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun2.l.google.com:19302" },
-  { urls: "stun:stun.services.mozilla.com" },
-  { urls: "stun:stun.stunprotocol.org:3478" },
-];
-
-// Asynchronously fetch the latest TURN server credentials from Twilio
-// This is a common practice for using their free service tier.
-async function fetchIceServers() {
-  try {
-    const response = await fetch(
-      "https://anonymous-chat-backend-1.onrender.com/ice"
-    );
-    if (!response.ok) {
-      throw new Error("Failed to fetch ICE servers");
-    }
-    const twilioIceServers = await response.json();
-    peerConnectionConfig.iceServers = [...iceServers, ...twilioIceServers];
-  } catch (error) {
-    console.error(
-      "Could not fetch ICE servers from Twilio, using STUN only.",
-      error
-    );
-    peerConnectionConfig.iceServers = iceServers;
-  }
-}
-
+// --- WEBRTC CONFIGURATION ---
 const peerConnectionConfig = {
-  iceServers: [], // Will be populated by fetchIceServers
-  iceCandidatePoolSize: 10,
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun.services.mozilla.com" },
+    { urls: "stun:stun.stunprotocol.org:3478" },
+    { urls: "stun:global.stun.twilio.com:3478" },
+  ],
 };
 
 const predefinedBackgrounds = [
@@ -199,9 +181,8 @@ const predefinedBackgrounds = [
   "https://images.unsplash.com/photo-1433086966358-54859d0ed716?q=80&w=1374&auto=format&fit=crop",
 ];
 
-// --- Initialization & Event Listeners ---
-window.addEventListener("load", async () => {
-  await fetchIceServers(); // Fetch ICE servers on load
+// --- INITIALIZATION & EVENT LISTENERS ---
+window.addEventListener("load", () => {
   const savedTheme = localStorage.getItem("chatTheme") || "light";
   applyTheme(savedTheme);
   const savedBackground = localStorage.getItem("chatBackground");
@@ -327,7 +308,7 @@ sidebarNav.addEventListener("click", (e) => {
   });
 });
 
-// --- Socket Event Handlers (Unchanged) ---
+// --- SOCKET EVENT HANDLERS ---
 socket.on("connect", () => {
   myId = socket.id;
   console.log("✅ Connected to server with ID:", myId);
@@ -385,7 +366,7 @@ socket.on("chat message", (msg) => {
   }
 });
 
-// --- Core Functions & Private Chat (Unchanged) ---
+// --- CORE FUNCTIONS & PRIVATE CHAT ---
 function checkForPersistedLogin() {
   try {
     const storedUser = JSON.parse(localStorage.getItem("userInfo"));
@@ -785,7 +766,7 @@ socket.on("private:partner_left", ({ room, partnerName }) => {
   }
 });
 
-// --- Game Logic (Unchanged) ---
+// --- GAME LOGIC ---
 const openHowToPlayModal = () => {
   const gameType = currentGameState.gameType || "doodle";
   howToPlayTitle.textContent =
@@ -1306,41 +1287,31 @@ function renderHangmanState(state) {
 }
 
 // ===================================================================================
-// --- 📞 AUDIO CALL (WEBRTC) - STABILITY FIX ---
+// --- 📞 VIDEO & AUDIO CALL (WEBRTC) IMPLEMENTATION ---
 // ===================================================================================
 
 function updateCallButtonVisibility() {
   const isPrivateChat = currentRoom.type === "private";
-  startCallBtn.style.display =
+  startAudioCallBtn.style.display =
     isPrivateChat && !isCallActive ? "inline-block" : "none";
-  endCallBtn.style.display = isCallActive ? "inline-block" : "none";
-  const inGame =
-    currentRoom.type === "doodle" || currentRoom.type === "hangman";
-  if (isCallActive && isPrivateChat && !inGame) {
+  startVideoCallBtn.style.display =
+    isPrivateChat && !isCallActive ? "inline-block" : "none";
+
+  if (isCallActive) {
     input.placeholder = "Call in progress...";
     input.disabled = true;
-  } else if (!inGame) {
+  } else if (currentRoom.type !== "doodle" && currentRoom.type !== "hangman") {
     input.placeholder = "Type your message...";
     input.disabled = false;
   }
 }
 
 async function createPeerConnection() {
-  console.log(
-    "⚡ Creating new RTCPeerConnection with config:",
-    peerConnectionConfig
-  );
+  console.log("⚡ Creating new RTCPeerConnection");
   peerConnection = new RTCPeerConnection(peerConnectionConfig);
-  iceCandidateQueue = [];
-  isNegotiating = false;
 
   peerConnection.onicecandidate = (event) => {
-    if (event.candidate && callPartnerId) {
-      console.log(
-        "📤 Sending ICE candidate:",
-        event.candidate.type,
-        event.candidate.address
-      );
+    if (event.candidate) {
       socket.emit("call:ice_candidate", {
         targetId: callPartnerId,
         candidate: event.candidate,
@@ -1349,89 +1320,36 @@ async function createPeerConnection() {
   };
 
   peerConnection.onconnectionstatechange = () => {
-    console.log(
-      `WebRTC Connection State Changed: %c${peerConnection.connectionState}`,
-      "font-weight: bold;"
-    );
-    switch (peerConnection.connectionState) {
-      case "connected":
-        showGameOverlayMessage("✅ Call connected.", 2000, "success");
-        break;
-      case "disconnected":
-        showGameOverlayMessage(
-          "⚠️ Call disconnected, attempting to reconnect...",
-          3000,
-          "system"
-        );
-        break;
-      case "failed":
-        handleConnectionFailure();
-        break;
-      case "closed":
-        endCall(false);
-        break;
+    console.log(`WebRTC Connection State: ${peerConnection.connectionState}`);
+    if (peerConnection.connectionState === "connected") {
+      callStatusIndicator.textContent = "Connected";
     }
-  };
-
-  peerConnection.onsignalingstatechange = () => {
-    isNegotiating = peerConnection.signalingState !== "stable";
-    console.log(`🚦 Signaling State Changed: ${peerConnection.signalingState}`);
+    if (
+      peerConnection.connectionState === "failed" ||
+      peerConnection.connectionState === "disconnected" ||
+      peerConnection.connectionState === "closed"
+    ) {
+      endCall(false);
+    }
   };
 
   peerConnection.ontrack = (event) => {
-    console.log("🎶 Received remote audio track.");
-    if (event.streams && event.streams[0]) {
-      remoteAudio.srcObject = event.streams[0];
-      remoteAudio
-        .play()
-        .catch((error) => console.error("Remote audio play failed:", error));
-    }
-  };
-
-  peerConnection.onnegotiationneeded = async () => {
-    if (isNegotiating)
-      return console.log(
-        "Skipping negotiationneeded due to ongoing negotiation"
-      );
-
-    isNegotiating = true;
-    try {
-      console.log("🤝 Negotiation needed, creating offer...");
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      socket.emit("call:offer", {
-        targetId: callPartnerId,
-        offer: peerConnection.localDescription,
-      });
-    } catch (err) {
-      console.error("Error during negotiationneeded event:", err);
-      displayError("An error occurred during call negotiation.");
-      endCall(true);
-    } finally {
-      isNegotiating = false;
-    }
+    console.log("🎶 Received remote track");
+    remoteVideo.srcObject = event.streams[0];
   };
 
   if (localStream) {
-    localStream.getTracks().forEach((track) => {
+    for (const track of localStream.getTracks()) {
       peerConnection.addTrack(track, localStream);
-    });
+    }
   }
 }
 
-function handleConnectionFailure() {
-  displayError("Call connection failed.");
-  showGameOverlayMessage("Call failed. Please try again.", 3000, "system");
-  endCall(true); // Notify the other peer that the call has ended.
-}
-
-async function startCall() {
+async function startMediaCall(constraints) {
   if (isCallActive || currentRoom.type !== "private") return;
 
   const partnerInfo = connectedRooms[currentRoom.id]?.withUser;
-  if (!partnerInfo) {
-    return displayError("Could not find a user to call.");
-  }
+  if (!partnerInfo) return displayError("Could not find a user to call.");
 
   callPartnerId = partnerInfo.id;
   isCallActive = true;
@@ -1439,35 +1357,51 @@ async function startCall() {
   showGameOverlayMessage(`📞 Calling ${partnerInfo.name}...`, 5000, "system");
 
   try {
-    console.log("🎤 Requesting microphone permissions...");
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    localAudio.srcObject = localStream;
-    console.log("🎤 Permissions granted.");
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    localVideo.srcObject = localStream;
 
+    setupCallUI(partnerInfo, constraints.video);
     await createPeerConnection();
+
+    isMakingOffer = true;
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit("call:offer", { targetId: callPartnerId, offer });
   } catch (err) {
     console.error("Error starting call:", err);
-    displayError("Could not start call. Check microphone permissions.");
+    displayError("Could not start call. Check camera/mic permissions.");
     endCall(false);
   }
 }
 
+function setupCallUI(partnerInfo, isVideoCall) {
+  callContainer.classList.add("active");
+  callPartnerName.textContent = partnerInfo.name;
+  callStatusIndicator.textContent = "Calling...";
+
+  callContainer.classList.toggle("audio-only", !isVideoCall);
+  toggleVideoBtn.style.display = isVideoCall ? "flex" : "none";
+  localVideo.classList.toggle("hidden", !isVideoCall);
+
+  const avatarColor = generateColorFromId(partnerInfo.id);
+  const initial = partnerInfo.name.charAt(0).toUpperCase();
+  audioCallAvatar.style.backgroundColor = avatarColor;
+  audioCallAvatar.textContent = initial;
+
+  // Reset button states
+  toggleMicBtn.classList.remove("mic-off");
+  toggleVideoBtn.classList.remove("video-off");
+}
+
 function endCall(notifyPeer = true) {
   if (!isCallActive && !incomingCallData && !peerConnection) return;
-  console.log(`☎️ Ending call. Notify peer: ${notifyPeer}`);
 
   if (notifyPeer && callPartnerId) {
     socket.emit("call:end");
   }
 
   if (peerConnection) {
-    peerConnection.onicecandidate = null;
-    peerConnection.onconnectionstatechange = null;
-    peerConnection.ontrack = null;
-    peerConnection.onnegotiationneeded = null;
-    if (peerConnection.signalingState !== "closed") {
-      peerConnection.close();
-    }
+    peerConnection.close();
     peerConnection = null;
   }
 
@@ -1476,15 +1410,15 @@ function endCall(notifyPeer = true) {
     localStream = null;
   }
 
-  remoteAudio.srcObject = null;
-  localAudio.srcObject = null;
+  remoteVideo.srcObject = null;
+  localVideo.srcObject = null;
 
   isCallActive = false;
   callPartnerId = null;
   incomingCallData = null;
-  isNegotiating = false;
-  iceCandidateQueue = [];
+  isMakingOffer = false;
 
+  callContainer.classList.remove("active");
   if (incomingCallModal.style.display === "flex") {
     incomingCallModal.style.display = "none";
   }
@@ -1493,18 +1427,47 @@ function endCall(notifyPeer = true) {
   updateCallButtonVisibility();
 }
 
-// --- REVISED AUDIO CALL SOCKET HANDLERS ---
+// --- CALL SOCKET HANDLERS ---
 socket.on("call:incoming", async ({ from, offer }) => {
-  if (isCallActive || incomingCallData || peerConnection) {
-    console.warn("Received call while busy. Notifying server.");
-    socket.emit("call:decline", { targetId: from.id, reason: "busy" });
-    return;
+  if (isCallActive || incomingCallData) {
+    return socket.emit("call:decline", { targetId: from.id, reason: "busy" });
   }
 
   console.log(`📞 Incoming call from ${from.name}`);
   incomingCallData = { from, offer };
-  incomingCallFrom.textContent = `${from.name} is calling`;
+
+  incomingCallFrom.textContent = from.name;
+  const avatarColor = generateColorFromId(from.id);
+  const initial = from.name.charAt(0).toUpperCase();
+  incomingCallAvatar.style.backgroundColor = avatarColor;
+  incomingCallAvatar.textContent = initial;
+
   incomingCallModal.style.display = "flex";
+});
+
+socket.on("call:answer_received", async ({ answer }) => {
+  if (!peerConnection || isMakingOffer === false) return;
+  console.log("✅ Answer received");
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+  isMakingOffer = false;
+});
+
+socket.on("call:ice_candidate_received", async ({ candidate }) => {
+  if (peerConnection) {
+    try {
+      await peerConnection.addIceCandidate(candidate);
+    } catch (e) {
+      console.error("Error adding received ICE candidate", e);
+    }
+  }
+});
+
+socket.on("call:declined", ({ from, reason }) => {
+  let message = `❌ ${from.name || "User"} declined the call.`;
+  if (reason === "busy")
+    message = `❌ ${from.name || "User"} is busy on another call.`;
+  showGameOverlayMessage(message, 3000, "system");
+  endCall(false);
 });
 
 socket.on("call:busy", ({ from }) => {
@@ -1517,61 +1480,24 @@ socket.on("call:error", (message) => {
   endCall(false);
 });
 
-socket.on("call:answer_received", async ({ answer }) => {
-  if (!peerConnection)
-    return console.error("Received answer but no peer connection exists.");
-  console.log("✅ Answer received from peer.");
-  try {
-    await peerConnection.setRemoteDescription(
-      new RTCSessionDescription(answer)
-    );
-    iceCandidateQueue.forEach((candidate) =>
-      peerConnection.addIceCandidate(candidate)
-    );
-    iceCandidateQueue = [];
-  } catch (err) {
-    console.error("Error setting remote description for answer:", err);
-  }
-});
-
-socket.on("call:ice_candidate_received", async ({ candidate }) => {
-  if (!peerConnection) return;
-  try {
-    if (peerConnection.remoteDescription) {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    } else {
-      console.log(
-        "📥 Queuing ICE candidate because remote description is not set yet."
-      );
-      iceCandidateQueue.push(candidate);
-    }
-  } catch (e) {
-    console.warn("Harmless error adding ICE candidate:", e);
-  }
-});
-
-socket.on("call:declined", ({ from, reason }) => {
-  let message = `❌ ${from.name || "User"} declined the call.`;
-  if (reason === "busy")
-    message = `❌ ${from.name || "User"} is busy on another call.`;
-  showGameOverlayMessage(message, 3000, "system");
-  endCall(false);
-});
-
 socket.on("call:ended", () => {
   showGameOverlayMessage("The other user has ended the call.", 2000, "system");
   endCall(false);
 });
 
-// --- AUDIO CALL EVENT LISTENERS ---
-startCallBtn.addEventListener("click", startCall);
+// --- CALL EVENT LISTENERS ---
+startAudioCallBtn.addEventListener("click", () =>
+  startMediaCall({ audio: true, video: false })
+);
+startVideoCallBtn.addEventListener("click", () =>
+  startMediaCall({ audio: true, video: true })
+);
 endCallBtn.addEventListener("click", () => endCall(true));
 
 acceptCallBtn.addEventListener("click", async () => {
   if (!incomingCallData) return;
-
   const { from, offer } = incomingCallData;
-  console.log(`✅ Accepting call from ${from.name}`);
+
   incomingCallModal.style.display = "none";
 
   const privateRoomId = [myId, from.id].sort().join("-");
@@ -1583,29 +1509,23 @@ acceptCallBtn.addEventListener("click", async () => {
   isCallActive = true;
   updateCallButtonVisibility();
 
+  const hasVideo = offer.sdp.includes("m=video");
+  const constraints = { audio: true, video: hasVideo };
+
   try {
-    console.log("🎤 Requesting microphone permissions...");
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    localAudio.srcObject = localStream;
-    console.log("🎤 Permissions granted.");
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    localVideo.srcObject = localStream;
+    setupCallUI(from, hasVideo);
 
     await createPeerConnection();
-
-    console.log("Offer: Setting remote description.");
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
-    console.log("Answer: Creating answer...");
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
-    console.log("Answer: Local description set.");
 
-    socket.emit("call:answer", {
-      targetId: from.id,
-      answer: peerConnection.localDescription,
-    });
+    socket.emit("call:answer", { targetId: from.id, answer });
   } catch (err) {
     console.error("Error accepting call:", err);
-    displayError("Could not accept call. Check microphone permissions.");
+    displayError("Could not accept call. Check permissions.");
     endCall(true);
   } finally {
     incomingCallData = null;
@@ -1614,12 +1534,30 @@ acceptCallBtn.addEventListener("click", async () => {
 
 declineCallBtn.addEventListener("click", () => {
   if (incomingCallData) {
-    console.log(`❌ Declining call from ${incomingCallData.from.name}`);
     socket.emit("call:decline", {
       targetId: incomingCallData.from.id,
       reason: "declined",
     });
     incomingCallModal.style.display = "none";
     incomingCallData = null;
+  }
+});
+
+toggleMicBtn.addEventListener("click", () => {
+  if (!localStream) return;
+  const audioTrack = localStream.getAudioTracks()[0];
+  if (audioTrack) {
+    audioTrack.enabled = !audioTrack.enabled;
+    toggleMicBtn.classList.toggle("mic-off", !audioTrack.enabled);
+  }
+});
+
+toggleVideoBtn.addEventListener("click", () => {
+  if (!localStream) return;
+  const videoTrack = localStream.getVideoTracks()[0];
+  if (videoTrack) {
+    videoTrack.enabled = !videoTrack.enabled;
+    toggleVideoBtn.classList.toggle("video-off", !videoTrack.enabled);
+    localVideo.classList.toggle("hidden", !videoTrack.enabled);
   }
 });

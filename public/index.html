@@ -97,30 +97,44 @@
     </div>
 
     <div id="incomingCallModal" class="modal" style="display: none">
-      <div class="modal-content">
-        <h2
-          id="incomingCallTitle"
-          style="
-            margin-bottom: 18px;
-            color: var(--secondary-accent);
-            text-align: center;
-          "
-        >
-          📞 Incoming Call...
-        </h2>
-        <p
-          id="incomingCallFrom"
-          style="
-            text-align: center;
-            font-size: 1.2rem;
-            font-weight: 500;
-            margin-top: -10px;
-            margin-bottom: 20px;
-          "
-        ></p>
-        <div class="modal-buttons">
-          <button id="declineCallBtn" class="btn-danger">Decline</button>
-          <button id="acceptCallBtn" class="btn-start">Accept</button>
+      <div class="modal-content incoming-call-content">
+        <div id="incomingCallAvatar"></div>
+        <h2 id="incomingCallFrom"></h2>
+        <p id="incomingCallStatus">ringing...</p>
+        <div class="modal-buttons call-actions">
+          <div class="call-action">
+            <button id="declineCallBtn" class="call-control-btn danger">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M20.01 3.99c-1.54-1.54-3.58-2.39-5.79-2.39-2.21 0-4.25.85-5.79 2.39-3.41 3.41-3.41 8.95 0 12.36l2.12 2.12c.39.39 1.02.39 1.41 0l1.41-1.41-3.53-3.53a1 1 0 0 1 0-1.41l3.53-3.53a1 1 0 0 1 1.41 0l3.53 3.53a1 1 0 0 1 0 1.41L16.26 15l1.41 1.41c.39.39 1.02.39 1.41 0l2.12-2.12c3.42-3.41 3.42-8.95.01-12.36z"
+                ></path>
+              </svg>
+            </button>
+            <span>Decline</span>
+          </div>
+          <div class="call-action">
+            <button id="acceptCallBtn" class="call-control-btn accept">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M16.51 3.99c-1.54-1.54-3.58-2.39-5.79-2.39-2.21 0-4.25.85-5.79 2.39C1.52 7.4 1.52 12.94 4.93 16.35l2.12 2.12c.39.39 1.02.39 1.41 0l1.41-1.41-3.53-3.53a1 1 0 0 1 0-1.41l3.53-3.53a1 1 0 0 1 1.41 0l3.53 3.53a1 1 0 0 1 0 1.41L12.26 15l1.41 1.41c.39.39 1.02.39 1.41 0l2.12-2.12c3.42-3.41 3.42-8.95.01-12.36z"
+                  transform="rotate(135 12 12)"
+                ></path>
+              </svg>
+            </button>
+            <span>Accept</span>
+          </div>
         </div>
       </div>
     </div>
@@ -298,11 +312,131 @@
       </div>
     </div>
 
+    <div id="callContainer">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay muted playsinline></video>
+
+      <div id="callInfoBar">
+        <span id="callPartnerName"></span>
+        <span id="callStatusIndicator"></span>
+      </div>
+
+      <div id="audioCallView">
+        <div id="audioCallAvatar"></div>
+        <p>Audio Call</p>
+      </div>
+
+      <div id="callControls">
+        <button
+          id="toggleMicBtn"
+          class="call-control-btn"
+          title="Mute/Unmute Mic"
+        >
+          <svg
+            class="icon-mic"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"
+            ></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+          <svg
+            class="icon-mic-off"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+            <path
+              d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"
+            ></path>
+            <path
+              d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"
+            ></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </button>
+        <button
+          id="toggleVideoBtn"
+          class="call-control-btn"
+          title="Turn Camera On/Off"
+        >
+          <svg
+            class="icon-video"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+          <svg
+            class="icon-video-off"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"
+            ></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+          </svg>
+        </button>
+        <button
+          id="endCallBtn"
+          class="call-control-btn danger"
+          title="End Call"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path
+              d="M20.01 3.99c-1.54-1.54-3.58-2.39-5.79-2.39-2.21 0-4.25.85-5.79 2.39-3.41 3.41-3.41 8.95 0 12.36l2.12 2.12c.39.39 1.02.39 1.41 0l1.41-1.41-3.53-3.53a1 1 0 0 1 0-1.41l3.53-3.53a1 1 0 0 1 1.41 0l3.53 3.53a1 1 0 0 1 0 1.41L16.26 15l1.41 1.41c.39.39 1.02.39 1.41 0l2.12-2.12c3.42-3.41 3.42-8.95.01-12.36z"
+            ></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <div id="topBar">
       <span id="roomTitle">🌐 Public Chat</span>
       <div class="top-bar-buttons">
         <button
-          id="startCallBtn"
+          id="startAudioCallBtn"
           class="call-btn"
           title="Start Audio Call"
           style="display: none"
@@ -310,12 +444,12 @@
           📞
         </button>
         <button
-          id="endCallBtn"
-          class="call-btn danger"
-          title="End Call"
+          id="startVideoCallBtn"
+          class="call-btn"
+          title="Start Video Call"
           style="display: none"
         >
-          ☎️
+          📹
         </button>
         <button id="theme-toggle" title="Toggle dark mode">🌙</button>
         <button id="showUsersBtn">☰ Menu</button>
@@ -418,9 +552,6 @@
         </div>
       </div>
     </div>
-
-    <audio id="localAudio" autoplay muted playsinline></audio>
-    <audio id="remoteAudio" autoplay playsinline></audio>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="script.js"></script>
